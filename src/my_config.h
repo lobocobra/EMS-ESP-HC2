@@ -29,14 +29,14 @@
 #define TOPIC_THERMOSTAT_CMD_HC "thermostat_cmd_hc"                // for received thermostat hc number changes via MQTT
 #define TOPIC_THERMOSTAT_CMD_DAYTEMP "thermostat_daytemp"          // RC35 specific
 #define TOPIC_THERMOSTAT_CMD_NIGHTTEMP "thermostat_nighttemp"      // RC35 specific
-#define TOPIC_THERMOSTAT_CMD_HOLIDAYTEMP "thermostat_holidayttemp" // RC35 specific
+#define TOPIC_THERMOSTAT_CMD_HOLIDAYTEMP "thermostat_holidaytemp" // RC35 specific
 #define THERMOSTAT_CURRTEMP "thermostat_currtemp"                  // current temperature
 #define THERMOSTAT_SELTEMP "thermostat_seltemp"                    // selected temperature
 #define THERMOSTAT_HC "thermostat_hc"                              // which heating circuit number
 #define THERMOSTAT_MODE "thermostat_mode"                          // mode
 #define THERMOSTAT_DAYTEMP "thermostat_daytemp"                    // RC35 specific
 #define THERMOSTAT_NIGHTTEMP "thermostat_nighttemp"                // RC35 specific
-#define THERMOSTAT_HOLIDAYTEMP "thermostat_holidayttemp"           // RC35 specific
+#define THERMOSTAT_HOLIDAYTEMP "thermostat_holidaytemp"           // RC35 specific
 #define THERMOSTAT_HEATINGTYPE "themrostat_heatingtype"            // RC35 specific (3=floorheating)
 #define THERMOSTAT_CIRCUITCALCTEMP "thermostat_circuitcalctemp"    // RC35 specific
 

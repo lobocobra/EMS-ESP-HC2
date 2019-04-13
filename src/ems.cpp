@@ -233,6 +233,9 @@ void ems_init() {
     EMS_Boiler.curBurnPow  = EMS_VALUE_INT_NOTSET;   // Burner current power
     EMS_Boiler.flameCurr   = EMS_VALUE_SHORT_NOTSET; // Flame current in micro amps
     EMS_Boiler.sysPress    = EMS_VALUE_INT_NOTSET;   // System pressure
+    // lobocobra start initialize value
+    EMS_Boiler.airInflow  = EMS_VALUE_SHORT_NOTSET; // air inflow temp
+    // lobocobra end
     strlcpy(EMS_Boiler.serviceCodeChar, "??", sizeof(EMS_Boiler.serviceCodeChar));
     EMS_Boiler.serviceCode = EMS_VALUE_SHORT_NOTSET;
 
@@ -1102,7 +1105,9 @@ void _process_UBAMonitorFast(uint8_t src, uint8_t * data, uint8_t length) {
 
     // system pressure. FF means missing
     EMS_Boiler.sysPress = _toByte(17); // this is *10
-
+    // lobocobra start read value
+    EMS_Boiler.airInflow = _toShort(22); 
+    // lobocobra end
     // at this point do a quick check to see if the hot water or heating is active
     _checkActive();
 }

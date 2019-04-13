@@ -587,6 +587,13 @@ void publishValues(bool force) {
     rootBoiler["selBurnPow"]        = _int_to_char(s, EMS_Boiler.selBurnPow);
     rootBoiler["curBurnPow"]        = _int_to_char(s, EMS_Boiler.curBurnPow);
     rootBoiler["sysPress"]          = _int_to_char(s, EMS_Boiler.sysPress, 10);
+ // lobocobra start send to mqtt
+    // not working rootBoiler["airInflow"]         = _int_to_char(s, EMS_Boiler.airInflow, 1);
+    // not working rootBoiler["flameCurr"]         = _int_to_char(s, EMS_Boiler.flameCurr,1);
+    rootBoiler["burnerDays"]        = _int_to_char(s, EMS_Boiler.burnWorkMin / 1440, 1);
+    rootBoiler["burnerHours"]       = _int_to_char(s, (EMS_Boiler.burnWorkMin % 1440) / 60, 1);
+    rootBoiler["burnerMin"]         = _int_to_char(s, EMS_Boiler.burnWorkMin %60, 1);
+ // lobocobra end   
     rootBoiler["boilTemp"]          = _short_to_char(s, EMS_Boiler.boilTemp);
     rootBoiler["pumpMod"]           = _int_to_char(s, EMS_Boiler.pumpMod);
     rootBoiler["ServiceCode"]       = EMS_Boiler.serviceCodeChar;

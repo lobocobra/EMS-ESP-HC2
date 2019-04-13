@@ -185,6 +185,9 @@ typedef struct {           // UBAParameterWW
     uint8_t  selBurnPow;         // Burner max power
     uint8_t  curBurnPow;         // Burner current power
     uint16_t flameCurr;          // Flame current in micro amps
+    // lobocobra start
+    uint16_t airInflow;
+    // lobocobra end
     uint8_t  sysPress;           // System pressure
     char     serviceCodeChar[3]; // 2 character status/service code
     uint16_t serviceCode;        // error/service code
