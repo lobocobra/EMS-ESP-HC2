@@ -22,7 +22,7 @@
 #define EMS_MIN_TELEGRAM_LENGTH 6 // minimal length for a validation telegram, including CRC
 
 // max length of a telegram, including CRC, for Rx and Tx.
-#define EMS_MAX_TELEGRAM_LENGTH 32
+#define EMS_MAX_TELEGRAM_LENGTH 42 // lobocobra was 32, I need more data
 
 // default values
 #define EMS_VALUE_INT_ON 1             // boolean true
@@ -261,6 +261,18 @@ typedef struct {
     uint8_t holidaytemp;
     uint8_t heatingtype;
     uint8_t circuitcalctemp;
+    // lobocobra start
+    uint8_t ausschalthysterese   ; // positive value heating off when above x°
+    uint8_t einschalthysterese   ; // negative value heating on when below x°
+    uint8_t antipendelzeit       ; // time between 2 starts
+    uint8_t kesselpumennachlauf  ; // pump running longer
+    uint8_t auslegungstemp ; // temperature bei min temp
+    uint8_t maxvorlauf ; // maximale Vorlauf Temp
+    uint8_t roomoffset ; // temperature bei min temp
+    uint8_t minoutsidetemp; // minimal temp in the region
+    uint8_t housetype; // light medium heavy house types
+    uint8_t tempaverage; // outside temp is mixed to average temp
+    // lobocobra end
 } _EMS_Thermostat;
 
 // call back function signature for processing telegram types

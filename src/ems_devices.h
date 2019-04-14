@@ -80,6 +80,9 @@
 #define EMS_TYPE_RC35StatusMessage_HC2 0x48     // is an automatic thermostat broadcast giving us temps on HC2
 #define EMS_TYPE_RC35Set_HC1 0x3D               // for setting values like temp and mode (Working mode HC1)
 #define EMS_TYPE_RC35Set_HC2 0x47               // for setting values like temp and mode (Working mode HC2)
+//lobocobra start 
+#define EMS_TYPE_AnlageParamSet 0xA5            // AnlageParamSet
+//lobocobra end 
 #define EMS_OFFSET_RC35StatusMessage_setpoint 2 // desired temp
 #define EMS_OFFSET_RC35StatusMessage_curr 3     // current temp
 #define EMS_OFFSET_RC35Set_mode 7               // position of thermostat mode
