@@ -41,7 +41,7 @@
 #define THERMOSTAT_CMD_ROOMOFFSET "roomoffset"//  offset Parallelverschiebenung
 #define THERMOSTAT_CMD_MINOUTSIDETEMP "minoutsidetemp"//  offset Parallelverschiebenung
 #define THERMOSTAT_CMD_HOUSETYPE "housetype"//  offset Parallelverschiebenung
-#define THERMOSTAT_CMD_TEMPAVERAGE "tempaverage"//  offset Parallelverschiebenung
+#define THERMOSTAT_CMD_TEMPAVERAGEBOOL "tempaveragebool"//  offset Parallelverschiebenung
 //lobocobra end
 // MWTT subscribe 
 #define THERMOSTAT_CURRTEMP "thermostat_currtemp"                  // current temperature
@@ -63,7 +63,7 @@
 #define THERMOSTAT_ROOMOFFSET "roomoffset"//  offset Parallelverschiebenung
 #define THERMOSTAT_MINOUTSIDETEMP "minoutsidetemp"//  offset Parallelverschiebenung
 #define THERMOSTAT_HOUSETYPE "housetype"//  offset Parallelverschiebenung
-#define THERMOSTAT_TEMPAVERAGE "TEMPAVERAGE"//  offset Parallelverschiebenung
+#define THERMOSTAT_TEMPAVERAGEBOOL "tempaveragebool"//  offset Parallelverschiebenung
 // lobocobra end
 
 // MQTT for boiler

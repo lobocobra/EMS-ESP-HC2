@@ -658,7 +658,7 @@ void publishValues(bool force) {
             rootThermostat[THERMOSTAT_ROOMOFFSET]           = _int_to_char(s, EMS_Thermostat.roomoffset, 2);        
             rootThermostat[THERMOSTAT_MINOUTSIDETEMP]       = _int_to_char(s, 256 - EMS_Thermostat.minoutsidetemp); // still a pos value, wrong must be neg
             rootThermostat[THERMOSTAT_HOUSETYPE]            = _int_to_char(s, EMS_Thermostat.housetype); 
-            rootThermostat[THERMOSTAT_TEMPAVERAGE]          = _int_to_char(s, EMS_Thermostat.tempaverage); 
+            rootThermostat[THERMOSTAT_TEMPAVERAGEBOOL]      = _int_to_char(s, EMS_Thermostat.tempaveragebool); 
             // lobocobra end
         }
 
@@ -1285,7 +1285,7 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
         myESP.mqttSubscribe(THERMOSTAT_CMD_ROOMOFFSET);
         myESP.mqttSubscribe(THERMOSTAT_CMD_MINOUTSIDETEMP);
         myESP.mqttSubscribe(THERMOSTAT_CMD_HOUSETYPE);
-        myESP.mqttSubscribe(THERMOSTAT_CMD_TEMPAVERAGE);
+        myESP.mqttSubscribe(THERMOSTAT_CMD_TEMPAVERAGEBOOL);
         //lobocobra end
 
         // publish the status of the Shower parameters
@@ -1331,43 +1331,158 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             myDebug("MQTT topic: RAW telegram: %s", message);
             ems_sendRawTelegram((char *)&message[0]); 
         }
-        if (strcmp(topic,THERMOSTAT_CMD_AUSSCHALTHYSTERESE ) == 0) {
-            myDebug("MQTT topic: Ausschalthysterese: %s", message);
-            // code to change 
+        if (strcmp(topic,THERMOSTAT_CMD_AUSSCHALTHYSTERESE ) == 0) { 
+            //convert message to INT and control it
+            uint8_t t = atoi((char *)message);
+            if (t<5 || t> 12) {
+                myDebug("MQTT topic: Ausschalthysterese outside 5-12 °c, abort on °: %s", message);    
+                return;
+            }
+            // code to change send 0B 08 16 04  xx (temp)
+            char Atemp[]           = "0b 08 16 04 ";
+            //convert INT to hex & prepare HEX string to send 
+            char buffer[16]      = {0};
+            ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
+            myDebug("MQTT topic: New Ausschalthysterese ° above %s", message);  
+            publishValues(true); // needed in order to have mqtt updated
         }          
         if (strcmp(topic,THERMOSTAT_CMD_EINSCHALTHYSTERESE ) == 0) {
-            myDebug("MQTT topic: Einschalthysterese: %s", message);
-            // code to change 
+            //convert message to INT and control it
+            uint8_t t = atoi((char *)message);
+            if (t<5 || t> 12) {
+                myDebug("MQTT topic: Einschalthysterese outside 5-12 °c, abort on °: %s", message);    
+                return;
+            }
+            // code to change send 0B 08 16 05  xx (temp)
+            char Atemp[]           = "0b 08 16 05 ";
+            //convert INT to hex & prepare HEX string to send 
+            char buffer[16]      = {0};
+            ems_sendRawTelegram( strcat (Atemp, _hextoa( (256-t), buffer)) );  //negative value, substract from 256
+            myDebug("MQTT topic: New Einschalthysterese ° above %s", message); 
+            publishValues(true); // needed in order to have mqtt updated
         }
         if (strcmp(topic,THERMOSTAT_CMD_ANTIPENDELZEIT ) == 0) {
-            myDebug("MQTT topic: Antipendelzeit: %s", message);
-            // code to change 
+            //convert message to INT and control it
+            uint8_t t = atoi((char *)message);
+            if (t<5 || t> 30) {
+                myDebug("MQTT topic: Antipendelzeit outside 5-30 min, abort on min: %s", message);    
+                return;
+            }
+            // code to change send 0B 08 16 06  xx (temp)
+            char Atemp[]           = "0b 08 16 06 ";
+            //convert INT to hex & prepare HEX string to send 
+            char buffer[16]      = {0};
+            ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
+            myDebug("MQTT topic: New Antipendelzeit min %s", message);  
+            publishValues(true); // needed in order to have mqtt updated
         }
         if (strcmp(topic,THERMOSTAT_CMD_AUSLEGUNGSTEMP ) == 0) {
-            myDebug("MQTT topic: Auslegungstemperatur %s", message);
-            // code to change send 0b 10 47 24 01
+            //convert message to INT and control it
+            uint8_t t = atoi((char *)message);
+            if (t<30 || t> 60) {
+                myDebug("MQTT topic: Auslegungstemperatur not accepted, abort on temp: %s", message);    
+                return;
+            }
+            // code to change send 0b 10 47 24 xx (temp)
+            char Atemp[]           = "0b 10 47 24 ";
+            //convert INT to hex & prepare HEX string to send 
+            char buffer[16]      = {0};
+            ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
+            myDebug("MQTT topic: New Auslegungstemperatur %s", message);  
+            publishValues(true); // needed in order to have mqtt updated           
         }   
         if (strcmp(topic,THERMOSTAT_CMD_MAXVORLAUF ) == 0) {
-            myDebug("MQTT topic: MAX Vorlauf %s", message);
-            // code to change send 0b 10 47 2
+            //convert message to INT and control it
+            uint8_t t = atoi((char *)message);
+            if (t<30 || t> 65) {
+                myDebug("MQTT topic: Max Vorlauf not accepted (30-65°), abort on temp: %s", message);
+                return;
+            }
+            // code to change send 0b 10 47 23 xx (temp)
+            char Atemp[]         = "0b 10 47 23 ";
+            //convert INT to hex & prepare HEX string to send 
+            char buffer[16]      = {0};
+            ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
+            myDebug("MQTT topic: New Max Vorlauf %s", message);
+            publishValues(true); // needed in order to have mqtt updated
         }  
         if (strcmp(topic,THERMOSTAT_CMD_ROOMOFFSET ) == 0) {
-            myDebug("MQTT topic: Room Offset %s", message);
-            // code to change send 
+            //convert message to INT and control it
+            float t     = strtof((char *)message, 0);
+            if (t<0 || t> 5) {
+                myDebug("MQTT topic: Max RoomOffset not accepted, abort on temp: %s", message);
+                return;
+            }
+            // code to change send send 0b 10 47 06 xx (temp*2)
+            char Atemp[]         = "0b 10 47 06 ";
+            //convert INT to hex & prepare HEX string to send 
+            char buffer[16]      = {0};
+            ems_sendRawTelegram( strcat (Atemp, _hextoa((int)(t*2), buffer)) );  
+            myDebug("MQTT topic: New RoomOffset %s", message);
+            publishValues(true); // needed in order to have mqtt updated
         }    
         
         if (strcmp(topic,THERMOSTAT_CMD_MINOUTSIDETEMP ) == 0) {
-            myDebug("MQTT topic: Min Outside Temp %s", message);
-            // code to change send 
+            //convert message to INT and control it
+            uint8_t t = atoi((char *)message);
+            if (t<236 || t> 255) { // we accept -20 to -1
+                myDebug("MQTT topic: Minusoutsidetemp not within -20 to -1°c, abort on °: %d", t);    
+                return;
+            }
+            // code to change send 0B 10 A5 05  xx (temp)
+            char Atemp[]           = "0b 10 A5 05 ";
+            //convert INT to hex & prepare HEX string to send 
+            char buffer[16]      = {0};
+            ems_sendRawTelegram( strcat (Atemp, _hextoa( (t), buffer)) );  //negative value, substract from 256
+            //myDebug("MQTT topic: New Minusoutsidetemp ° above %s", strcat (Atemp, _hextoa( (t), buffer)));
+            myDebug("MQTT topic: New Minusoutsidetemp ° at %s", message); 
+            publishValues(true); // needed in order to have mqtt updated 
         }       
         if (strcmp(topic,THERMOSTAT_CMD_HOUSETYPE ) == 0) {
-            myDebug("MQTT topic: Housetype %s", message);
-            // code to change send 
+            //convert message to INT and control it
+            uint8_t t = atoi((char *)message);
+            if (t<0 || t> 2) {
+                myDebug("MQTT topic: 0=leicht 1=mittel 2=schwer abort on type: %d", t);
+                return;
+            }
+            // code to change send 0b 10 A5 06 xx (type 0/1/2)
+            char Atemp[]         = "0b 10 A5 06 ";
+            //convert INT to hex & prepare HEX string to send 
+            char buffer[16]      = {0};
+            ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
+            myDebug("MQTT topic: New House type %s", message);
+            publishValues(true); // needed in order to have mqtt updated
         } 
-        if (strcmp(topic,THERMOSTAT_CMD_TEMPAVERAGE ) == 0) {
-            myDebug("MQTT topic: OutsideAverageBool %s", message);
-            // code to change send 
-        }         
+        if (strcmp(topic,THERMOSTAT_CMD_TEMPAVERAGEBOOL ) == 0) {
+            //convert message to INT and control it
+            uint8_t t = atoi((char *)message);
+            if (t<0 || t> 1) {
+                myDebug("MQTT topic: TempDämpfung ON/OFF: %d", t);
+                return;
+            }
+            // code to change send 0b 10 A5 21 xx (type 0/1/2)
+            char Atemp[]         = "0b 10 A5 21 ";
+            //convert INT to hex & prepare HEX string to send 
+            char buffer[16]      = {0};
+            ems_sendRawTelegram( strcat (Atemp, _hextoa(t*255, buffer)) );  // on =255 off=0
+            myDebug("MQTT topic: TempDaempung ON/OFF %s", message);
+            publishValues(true); // needed in order to have mqtt updated
+        }      
+        if (strcmp(topic,THERMOSTAT_CMD_KESSELPUMENNACHLAUF ) == 0) {
+            //convert message to INT and control it
+            uint8_t t = atoi((char *)message);
+            if (t<0 || t> 10) {
+                myDebug("MQTT topic: Kesselpumpennachlauf outside 5-10 min, abort on min: %s", message);    
+                return;
+            }
+            // code to change send 0B 08 16 08  xx (temp)
+            char Atemp[]           = "0b 08 16 08 ";
+            //convert INT to hex & prepare HEX string to send 
+            char buffer[16]      = {0};
+            ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
+            myDebug("MQTT topic: Kesselpumpennachlauf min %s", message);  
+            publishValues(true); // needed in order to have mqtt updated
+        }
         //lobocobra end 
 
         // set night temp value

@@ -226,7 +226,7 @@ void ems_init() {
     EMS_Thermostat.roomoffset           = EMS_VALUE_INT_NOTSET; // offset temp of the curve
     EMS_Thermostat.minoutsidetemp       = EMS_VALUE_INT_NOTSET; // minimum temp in region
     EMS_Thermostat.housetype            = EMS_VALUE_INT_NOTSET; // light medium heavy
-    EMS_Thermostat.tempaverage          = EMS_VALUE_INT_NOTSET; // activate averaging the temps
+    EMS_Thermostat.tempaveragebool      = false; // activate averaging the temps
     //lobocobra end
 
 
@@ -880,7 +880,14 @@ void _ems_processTelegram(_EMS_RxTelegram * EMS_RxTelegram) {
         }
         i++;
     }
-
+    //myDebug("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT OFFSET %d type: %d src:%d", offset,type,src); //lobocobra info
+    if ( src == 16 && type == 71 && offset == 22) { // lobocobra, ok we get the 2nd part of 0x47... handle it
+    EMS_Thermostat.maxvorlauf         = _toByte(13); // read max temp temp send 0b 90 47 23 01
+    EMS_Thermostat.auslegungstemp     = _toByte(14); // read max temp at min outside temp send 0b 90 47 24 01 
+    EMS_Sys_Status.emsTxStatus = EMS_TX_STATUS_IDLE;  
+    EMS_Sys_Status.emsRefreshed = true; // triggers a send the values back via MQTT
+    return;
+    }
     // if it's a common type (across ems devices) or something specifically for us process it.
     // dest will be EMS_ID_NONE and offset 0x00 for a broadcast message
     if (typeFound) {
@@ -896,7 +903,7 @@ void _ems_processTelegram(_EMS_RxTelegram * EMS_RxTelegram) {
             if (EMS_Types[i].emsplus && poffset == EMS_PLUS_ID_NONE)
                 (void)EMS_Types[i].processType_cb(ptype, pdata, length - 6 - poffset);
             // as we only handle complete telegrams (not partial) check that the offset is 0
-            else if (offset == EMS_ID_NONE && !EMS_Types[i].emsplus) {
+            else if (offset == EMS_ID_NONE && !EMS_Types[i].emsplus) { 
                 (void)EMS_Types[i].processType_cb(type, data, length - 5);
             }
         }
@@ -1267,7 +1274,7 @@ void _process_RC30Set(uint8_t src, uint8_t * data, uint8_t length) {
 void _process_AnlageParamSet(uint8_t src, uint8_t * data, uint8_t length) {
     EMS_Thermostat.minoutsidetemp   = _toByte(5);
     EMS_Thermostat.housetype        = _toByte(6);
-    EMS_Thermostat.tempaverage      = _toByte(21); //send 0b 90 a5 15 01 (position 21= hex 15)
+    EMS_Thermostat.tempaveragebool  = _toByte(21); //send 0b 90 a5 15 01 (position 21= hex 15)
 }
 // lobocobra end
 
@@ -1285,12 +1292,8 @@ void _process_RC35Set(uint8_t src, uint8_t * data, uint8_t length) {
     EMS_Thermostat.heatingtype = _toByte(EMS_OFFSET_RC35Set_heatingtype);  // byte 0 bit floor heating = 3 0x47
     //lobocobra start
     EMS_Thermostat.roomoffset         = _toByte(06); // read offset temp at min outside temp send 0b 90 47 06 01
-    EMS_Thermostat.maxvorlauf         = _toByte(35); // read max temp temp send 0b 90 47 23 01
-    EMS_Thermostat.auslegungstemp     = _toByte(36); // read max temp at min outside temp send 0b 90 47 24 01    
-    //myDebug(">>>>>>>>>>>>>>>>>>>>> maxvorlauf: %d  auslegungstemp:%d src: %d length:%d data %d",EMS_Thermostat.maxvorlauf,EMS_Thermostat.maxvorlauf,src, length, data[0]);
-    myDebug(">>>>>>>>>>>>>>>>>>>>> maxvorlauf: %d  auslegungstemp:%d src: %d length:%d ",EMS_Thermostat.maxvorlauf,EMS_Thermostat.auslegungstemp,src,length);
-
-
+    //EMS_Thermostat.maxvorlauf         = _toByte(35); // read max temp temp send 0b 90 47 23 01
+    //EMS_Thermostat.auslegungstemp     = _toByte(36); // read max temp at min outside temp send 0b 90 47 24 01    
     //lobocobra end
     EMS_Sys_Status.emsRefreshed = true; // triggers a send the values back via MQTT
 }
@@ -1593,6 +1596,9 @@ void ems_getThermostatValues() {
             ems_doReadCommand(EMS_TYPE_RC35Set_HC2, type);           // to get the mode
             //lobocobra start here we read regularily the data
             ems_doReadCommand(EMS_TYPE_AnlageParamSet, type);        // get PARAM settings
+            //ems_doReadCommand(EMS_TYPE_RC35Set_HC2, type, 21);     // => did not work, so I write it directly
+            char Str[] = "0b 90 47 16 20";                           // read 2nd part of 0x47 starting from DEC 22 
+            ems_sendRawTelegram((char *)&Str);                       // read 2nd part of 0x47 starting from DEC 22 
             //lobocobra end
         }
     } else if ((model_id == EMS_MODEL_EASY) || (model_id == EMS_MODEL_BOSCHEASY)) {
@@ -1786,7 +1792,6 @@ void ems_doReadCommand(uint8_t type, uint8_t dest, bool forceRefresh) {
     if ((type == EMS_ID_NONE) || (dest == EMS_ID_NONE)) {
         return;
     }
-
     // if we're preventing all outbound traffic, quit
     if (EMS_Sys_Status.emsTxDisabled) {
         myDebug("in Silent Mode. All Tx is disabled.");

@@ -22,7 +22,7 @@
 #define EMS_MIN_TELEGRAM_LENGTH 6 // minimal length for a validation telegram, including CRC
 
 // max length of a telegram, including CRC, for Rx and Tx.
-#define EMS_MAX_TELEGRAM_LENGTH 42 // lobocobra was 32, I need more data
+#define EMS_MAX_TELEGRAM_LENGTH 32 // lobocobra was 32, I need more data
 
 // default values
 #define EMS_VALUE_INT_ON 1             // boolean true
@@ -271,7 +271,7 @@ typedef struct {
     uint8_t roomoffset ; // temperature bei min temp
     uint8_t minoutsidetemp; // minimal temp in the region
     uint8_t housetype; // light medium heavy house types
-    uint8_t tempaverage; // outside temp is mixed to average temp
+    bool tempaveragebool; // outside temp is mixed to average temp
     // lobocobra end
 } _EMS_Thermostat;
 
@@ -292,6 +292,8 @@ extern void ems_parseTelegram(uint8_t * telegram, uint8_t len);
 void        ems_init();
 void        ems_doReadCommand(uint8_t type, uint8_t dest, bool forceRefresh = false);
 void        ems_sendRawTelegram(char * telegram);
+// lobocobra 
+char * _hextoa(uint8_t value, char * buffer);
 
 void ems_setThermostatTemp(float temperature, uint8_t temptype = 0);
 void ems_setThermostatMode(uint8_t mode);
