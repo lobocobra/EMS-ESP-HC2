@@ -616,10 +616,8 @@ void publishValues(bool force) {
 
     // see if the heating or hot tap water has changed, if so send
     // last_boilerActive stores heating in bit 1 and tap water in bit 2
-    if ((last_boilerActive != ((EMS_Boiler.tapwaterActive << 1) + EMS_Boiler.heatingActive)) || (force && EMSESP_Status.heating_circuit ==1 )) { //lobocobra added EMSESP_Status.heating_circuit to force not needed for me
+    if ((last_boilerActive != ((EMS_Boiler.tapwaterActive << 1) + EMS_Boiler.heatingActive)) && (force && EMSESP_Status.heating_circuit ==1 )) { //lobocobra added EMSESP_Status.heating_circuit to force not needed for me
         myDebugLog("Publishing hot water and heating states via MQTT");
-        myESP.mqttPublish(TOPIC_BOILER_TAPWATER_ACTIVE, EMS_Boiler.tapwaterActive == 1 ? "1" : "0");
-        myESP.mqttPublish(TOPIC_BOILER_HEATING_ACTIVE, EMS_Boiler.heatingActive == 1 ? "1" : "0");
 
         last_boilerActive = ((EMS_Boiler.tapwaterActive << 1) + EMS_Boiler.heatingActive); // remember last state
     }
@@ -650,13 +648,13 @@ void publishValues(bool force) {
             rootThermostat[THERMOSTAT_CIRCUITCALCTEMP] = _int_to_char(s, EMS_Thermostat.circuitcalctemp);
             // lobocobra start
             rootThermostat[THERMOSTAT_AUSSCHALTHYSTERESE]   = _int_to_char(s, EMS_Thermostat.ausschalthysterese);
-            rootThermostat[THERMOSTAT_EINSCHALTHYSTERESE]   = _int_to_char(s, 256 - EMS_Thermostat.einschalthysterese); //still a pos value, wrong must be neg
+            rootThermostat[THERMOSTAT_EINSCHALTHYSTERESE]   = itoa ( (256 - EMS_Thermostat.einschalthysterese)*-1,s,10); 
             rootThermostat[THERMOSTAT_ANTIPENDELZEIT]       = _int_to_char(s, EMS_Thermostat.antipendelzeit);
             rootThermostat[THERMOSTAT_KESSELPUMENNACHLAUF]  = _int_to_char(s, EMS_Thermostat.kesselpumennachlauf);
             rootThermostat[THERMOSTAT_MAXVORLAUF]           = _int_to_char(s, EMS_Thermostat.maxvorlauf);
             rootThermostat[THERMOSTAT_AUSLEGUNGSTEMP]       = _int_to_char(s, EMS_Thermostat.auslegungstemp); 
-            rootThermostat[THERMOSTAT_ROOMOFFSET]           = _int_to_char(s, EMS_Thermostat.roomoffset, 2);        
-            rootThermostat[THERMOSTAT_MINOUTSIDETEMP]       = _int_to_char(s, 256 - EMS_Thermostat.minoutsidetemp); // still a pos value, wrong must be neg
+            rootThermostat[THERMOSTAT_ROOMOFFSET]           = _int_to_char(s, EMS_Thermostat.roomoffset, 2); 
+            if (EMS_Thermostat.minoutsidetemp != 255) {rootThermostat[THERMOSTAT_MINOUTSIDETEMP] = itoa ( (256-EMS_Thermostat.minoutsidetemp)*-1,s,10); };//data is read async and thus later, avoid that we have the NO_DATA flag interpreted as -1
             rootThermostat[THERMOSTAT_HOUSETYPE]            = _int_to_char(s, EMS_Thermostat.housetype); 
             rootThermostat[THERMOSTAT_TEMPAVERAGEBOOL]      = _int_to_char(s, EMS_Thermostat.tempaveragebool); 
             // lobocobra end
@@ -1335,7 +1333,7 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             //convert message to INT and control it
             uint8_t t = atoi((char *)message);
             if (t<5 || t> 12) {
-                myDebug("MQTT topic: Ausschalthysterese outside 5-12 °c, abort on °: %s", message);    
+                myDebug("MQTT topic: Ausschalthysterese outside 5-12C, abort on C: %s", message);    
                 return;
             }
             // code to change send 0B 08 16 04  xx (temp)
@@ -1343,21 +1341,21 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             //convert INT to hex & prepare HEX string to send 
             char buffer[16]      = {0};
             ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
-            myDebug("MQTT topic: New Ausschalthysterese ° above %s", message);  
+            myDebug("MQTT topic: New Ausschalthysterese C %s", message);  
             publishValues(true); // needed in order to have mqtt updated
         }          
-        if (strcmp(topic,THERMOSTAT_CMD_EINSCHALTHYSTERESE ) == 0) {
+        if (strcmp(topic,THERMOSTAT_CMD_EINSCHALTHYSTERESE ) == 0) { // negative VALUE!
             //convert message to INT and control it
             uint8_t t = atoi((char *)message);
-            if (t<5 || t> 12) {
-                myDebug("MQTT topic: Einschalthysterese outside 5-12 °c, abort on °: %s", message);    
+            if (t<244 || t> 251) {
+                myDebug("MQTT topic: Einschalthysterese outside 5-12C, abort on C: %d", t);    
                 return;
             }
             // code to change send 0B 08 16 05  xx (temp)
             char Atemp[]           = "0b 08 16 05 ";
             //convert INT to hex & prepare HEX string to send 
             char buffer[16]      = {0};
-            ems_sendRawTelegram( strcat (Atemp, _hextoa( (256-t), buffer)) );  //negative value, substract from 256
+            ems_sendRawTelegram( strcat (Atemp, _hextoa( t, buffer)) );  //negative value, substract from 256
             myDebug("MQTT topic: New Einschalthysterese ° above %s", message); 
             publishValues(true); // needed in order to have mqtt updated
         }
@@ -1424,9 +1422,9 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
         
         if (strcmp(topic,THERMOSTAT_CMD_MINOUTSIDETEMP ) == 0) {
             //convert message to INT and control it
-            uint8_t t = atoi((char *)message);
-            if (t<236 || t> 255) { // we accept -20 to -1
-                myDebug("MQTT topic: Minusoutsidetemp not within -20 to -1°c, abort on °: %d", t);    
+            uint8_t t = atoi((char *)message);    
+            if (t<236 || t> 254) { // we accept -20 to -2 (255 would be No_DATA)
+                myDebug("MQTT topic: Minusoutsidetemp not within -20 to -2c, abort on: %d", t);    
                 return;
             }
             // code to change send 0B 10 A5 05  xx (temp)
@@ -1435,7 +1433,7 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             char buffer[16]      = {0};
             ems_sendRawTelegram( strcat (Atemp, _hextoa( (t), buffer)) );  //negative value, substract from 256
             //myDebug("MQTT topic: New Minusoutsidetemp ° above %s", strcat (Atemp, _hextoa( (t), buffer)));
-            myDebug("MQTT topic: New Minusoutsidetemp ° at %s", message); 
+            myDebug("MQTT topic: New Minusoutsidetemp at %s", message); 
             publishValues(true); // needed in order to have mqtt updated 
         }       
         if (strcmp(topic,THERMOSTAT_CMD_HOUSETYPE ) == 0) {
