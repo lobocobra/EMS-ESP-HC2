@@ -268,7 +268,7 @@ typedef struct {
     uint8_t kesselpumennachlauf  ; // pump running longer
     uint8_t auslegungstemp ; // temperature bei min temp
     uint8_t maxvorlauf ; // maximale Vorlauf Temp
-    uint8_t roomoffset ; // temperature bei min temp
+    uint8_t roomoffset ; // temperature parallel shift
     int minoutsidetemp; // minimal temp in the region
     uint8_t housetype; // light medium heavy house types
     bool tempaveragebool; // outside temp is mixed to average temp

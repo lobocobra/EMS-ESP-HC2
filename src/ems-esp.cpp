@@ -653,7 +653,13 @@ void publishValues(bool force) {
             rootThermostat[THERMOSTAT_KESSELPUMENNACHLAUF]  = _int_to_char(s, EMS_Thermostat.kesselpumennachlauf);
             rootThermostat[THERMOSTAT_MAXVORLAUF]           = _int_to_char(s, EMS_Thermostat.maxvorlauf);
             rootThermostat[THERMOSTAT_AUSLEGUNGSTEMP]       = _int_to_char(s, EMS_Thermostat.auslegungstemp); 
-            rootThermostat[THERMOSTAT_ROOMOFFSET]           = _int_to_char(s, EMS_Thermostat.roomoffset, 2); 
+            
+            //myDebug("EMS_Thermostat.roomoffset %d",EMS_Thermostat.roomoffset);
+            char buffer[16]      = {0};
+            (EMS_Thermostat.roomoffset > 10) ? 
+                (rootThermostat[THERMOSTAT_ROOMOFFSET] = _float_to_char(buffer, (float)(256 - EMS_Thermostat.roomoffset)/-2) ) :
+                (rootThermostat[THERMOSTAT_ROOMOFFSET] = _float_to_char(buffer, (float)EMS_Thermostat.roomoffset/2) );
+
             if (EMS_Thermostat.minoutsidetemp != 255) {rootThermostat[THERMOSTAT_MINOUTSIDETEMP] = itoa ( (256-EMS_Thermostat.minoutsidetemp)*-1,s,10); };//data is read async and thus later, avoid that we have the NO_DATA flag interpreted as -1
             rootThermostat[THERMOSTAT_HOUSETYPE]            = _int_to_char(s, EMS_Thermostat.housetype); 
             rootThermostat[THERMOSTAT_TEMPAVERAGEBOOL]      = _int_to_char(s, EMS_Thermostat.tempaveragebool); 
@@ -1406,17 +1412,19 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
         }  
         if (strcmp(topic,THERMOSTAT_CMD_ROOMOFFSET ) == 0) {
             //convert message to INT and control it
+            char buffer[16]      = {0};
             float t     = strtof((char *)message, 0);
-            if (t<0 || t> 5) {
-                myDebug("MQTT topic: Max RoomOffset not accepted, abort on temp: %s", message);
+            if (t<-5 || t> 5) {
+               myDebug("MQTT topic: Max RoomOffset not accepted, abort on temp: %s", _float_to_char(buffer, t));
                 return;
             }
+            // convert negative numbers and multiplicate it by 2 for EMS bus
+            (t<0) ? t = 256 - (t*-2) : t = (t*2); 
             // code to change send send 0b 10 47 06 xx (temp*2)
             char Atemp[]         = "0b 10 47 06 ";
             //convert INT to hex & prepare HEX string to send 
-            char buffer[16]      = {0};
-            ems_sendRawTelegram( strcat (Atemp, _hextoa((int)(t*2), buffer)) );  
-            myDebug("MQTT topic: New RoomOffset %s", message);
+            ems_sendRawTelegram( strcat (Atemp, _hextoa((int)t, buffer)) );  
+            myDebug("MQTT topic: New RoomOffset %s", _float_to_char(buffer, t));
             publishValues(true); // needed in order to have mqtt updated
         }    
         
