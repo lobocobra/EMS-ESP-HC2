@@ -1466,8 +1466,8 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
                 myDebug("MQTT topic: TempDämpfung ON/OFF: %d", t);
                 return;
             }
-            // code to change send 0b 10 A5 21 xx (type 0/1/2)
-            char Atemp[]         = "0b 10 A5 21 ";
+            //code to change send 0b 10 a5 15 xx (position 21= hex 15)
+            char Atemp[]         = "0b 10 A5 15 ";
             //convert INT to hex & prepare HEX string to send 
             char buffer[16]      = {0};
             ems_sendRawTelegram( strcat (Atemp, _hextoa(t*255, buffer)) );  // on =255 off=0
