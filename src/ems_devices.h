@@ -82,6 +82,7 @@
 #define EMS_TYPE_RC35Set_HC2 0x47               // for setting values like temp and mode (Working mode HC2)
 //lobocobra start 
 #define EMS_TYPE_AnlageParamSet 0xA5            // AnlageParamSet
+#define EMS_TYPE_HK2Schaltzeiten 0x49           // AnlageParamSet
 //lobocobra end 
 #define EMS_OFFSET_RC35StatusMessage_setpoint 2 // desired temp
 #define EMS_OFFSET_RC35StatusMessage_curr 3     // current temp

@@ -18,6 +18,7 @@
 #define EMS_ID_ME 0x0B        // Fixed - our device, hardcoded as the "Service Key"
 #define EMS_ID_DEFAULT_BOILER 0x08
 #define EMS_ID_SM10 0x30 // Solar Module SM10
+#define EMS_0x49 0x49 // lobocobra new data
 
 #define EMS_MIN_TELEGRAM_LENGTH 6 // minimal length for a validation telegram, including CRC
 
@@ -273,6 +274,8 @@ typedef struct {
     uint8_t roomoffset ; // temperature parallel shift
     int minoutsidetemp; // minimal temp in the region
     uint8_t housetype; // light medium heavy house types
+    uint8_t pausezeit; // set NIGHT temp for x h
+    uint8_t partyzeit; // prolongate day temp for x h
     bool tempaveragebool; // outside temp is mixed to average temp
     bool max_vorlauf_reached;
     bool urlaub_modus;

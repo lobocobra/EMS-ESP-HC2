@@ -44,6 +44,8 @@
 #define THERMOSTAT_CMD_ROOMOFFSET "roomoffset"                      //  offset Parallelverschiebenung
 #define THERMOSTAT_CMD_MINOUTSIDETEMP "minoutsidetemp"              //  min oudside temp in region
 #define THERMOSTAT_CMD_HOUSETYPE "housetype"                        //  leicht mittel schwer
+#define THERMOSTAT_CMD_PAUSEZEIT "pausezeit"                        //  Night mode for x hours
+#define THERMOSTAT_CMD_PARTYZEIT "partyzeit"                        //  Day mode for x hours longer
 #define THERMOSTAT_CMD_TEMPAVERAGEBOOL "tempaveragebool"            //  Temperaturdämpfung
 #define THERMOSTAT_CMD_SOMMERSCHWELLE_TEMP "sommerschwelle_temp"    // RC35 specific
 //lobocobra end
@@ -76,6 +78,8 @@
 #define THERMOSTAT_ROOMOFFSET "roomoffset"                          //  offset Parallelverschiebenung
 #define THERMOSTAT_MINOUTSIDETEMP "minoutsidetemp"                  //  Auslegung Minimal
 #define THERMOSTAT_HOUSETYPE "housetype"                            //  Leicht Mittel Schwer
+#define THERMOSTAT_PAUSEZEIT "pausezeit"                        //  Night mode for x hours
+#define THERMOSTAT_PARTYZEIT "partyzeit"                        //  Day mode for x hours longer
 #define THERMOSTAT_TEMPAVERAGEBOOL "tempaveragebool"                //  Temperatur Dämpfung ein
 // lobocobra end
 

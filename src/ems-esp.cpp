@@ -709,6 +709,10 @@ void publishValues(bool force) {
             rootThermostat2[THERMOSTAT_MAX_VORLAUF_REACHED]  = _int_to_char(s, EMS_Thermostat.max_vorlauf_reached);       // 0x48
             rootThermostat2[THERMOSTAT_URLAUB_MODUS]         = _int_to_char(s, EMS_Thermostat.urlaub_modus);              // 0x48
             rootThermostat2[THERMOSTAT_SOMMER_MODUS]         = _int_to_char(s, EMS_Thermostat.sommer_modus);              // 0x48
+            // 0x49
+            rootThermostat2[THERMOSTAT_PAUSEZEIT]            = _int_to_char(s, EMS_Thermostat.pausezeit);                 // 0x49
+            rootThermostat2[THERMOSTAT_PARTYZEIT]            = _int_to_char(s, EMS_Thermostat.partyzeit);                 // 0x49
+
             // 0x16
             rootThermostat2[THERMOSTAT_AUSSCHALTHYSTERESE]   = _int_to_char(s, EMS_Thermostat.ausschalthysterese);        // 0x16
             rootThermostat2[THERMOSTAT_EINSCHALTHYSTERESE]   = itoa ( (256 - EMS_Thermostat.einschalthysterese)*-1,s,10); // 0x16
@@ -1322,6 +1326,8 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
         myESP.mqttSubscribe(THERMOSTAT_CMD_ROOMOFFSET);
         myESP.mqttSubscribe(THERMOSTAT_CMD_MINOUTSIDETEMP);
         myESP.mqttSubscribe(THERMOSTAT_CMD_HOUSETYPE);
+        myESP.mqttSubscribe(THERMOSTAT_CMD_PAUSEZEIT);
+        myESP.mqttSubscribe(THERMOSTAT_CMD_PARTYZEIT);
         myESP.mqttSubscribe(THERMOSTAT_CMD_TEMPAVERAGEBOOL);
         myESP.mqttSubscribe(THERMOSTAT_CMD_SOMMERSCHWELLE_TEMP);
 //lobocobra end
@@ -1524,6 +1530,36 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             myDebug("MQTT topic: New House type %s", message);
             publishValues(true); // needed in order to have mqtt updated
         } 
+        if (strcmp(topic,THERMOSTAT_CMD_PAUSEZEIT) == 0) {
+            //convert message to INT and control it
+            uint8_t t = atoi((char *)message);
+            if (t<0 || t> 12) {
+                myDebug("MQTT topic: outside time 0-12h abort PAUSE on type: %d", t);
+                return;
+            }
+            // code to change send 0b 10 49 55 xx (!!! outside range for read see below)
+            char Atemp[]         = "0b 10 49 55 ";
+            //convert INT to hex & prepare HEX string to send 
+            char buffer[16]      = {0};
+            ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
+            myDebug("MQTT topic: PAUSEZEIT for %s hours", message);
+            publishValues(true); // needed in order to have mqtt updated
+        }   
+        if (strcmp(topic,THERMOSTAT_CMD_PARTYZEIT) == 0) {
+            //convert message to INT and control it
+            uint8_t t = atoi((char *)message);
+            if (t<0 || t> 12) {
+                myDebug("MQTT topic: outside time 0-12h abort PARTY on type: %d", t);
+                return;
+            }
+            // code to change send 0b 10 49 56 xx (!!! outside range for read see below)
+            char Atemp[]         = "0b 10 49 56 ";
+            //convert INT to hex & prepare HEX string to send 
+            char buffer[16]      = {0};
+            ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
+            myDebug("MQTT topic: PARTYZEIT for %s hours", message);
+            publishValues(true); // needed in order to have mqtt updated
+        }               
         if (strcmp(topic,THERMOSTAT_CMD_TEMPAVERAGEBOOL ) == 0) {
             //convert message to INT and control it
             uint8_t t = atoi((char *)message);

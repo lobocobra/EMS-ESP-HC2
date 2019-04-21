@@ -65,6 +65,7 @@ void _process_RC35Set(uint8_t src, uint8_t * data, uint8_t length);
 void _process_RC35StatusMessage(uint8_t src, uint8_t * data, uint8_t length);
 //lobocobra start
 void _process_AnlageParamSet(uint8_t src, uint8_t * data, uint8_t length);
+void _process_HK2Schaltzeiten(uint8_t src, uint8_t * data, uint8_t length);
 //lobocobra end
 
 // Easy
@@ -127,6 +128,7 @@ const _EMS_Type EMS_Types[] = {
     {EMS_MODEL_RC35, EMS_TYPE_RC35StatusMessage_HC2, "RC35StatusMessage_HC2", _process_RC35StatusMessage, false},
     //lobocobra start
     {EMS_MODEL_RC35, EMS_TYPE_AnlageParamSet, "AnlageParamSet", _process_AnlageParamSet, false},
+    {EMS_MODEL_RC35, EMS_TYPE_HK2Schaltzeiten, "HK2Schaltzeiten", _process_HK2Schaltzeiten, false},
     //lobocobra end
 
     // ES73
@@ -228,6 +230,8 @@ void ems_init() {
     EMS_Thermostat.minoutsidetemp       = EMS_VALUE_INT_NOTSET; // minimum temp in region
     EMS_Thermostat.housetype            = EMS_VALUE_INT_NOTSET; // light medium heavy
     EMS_Thermostat.tempaveragebool      = false; // activate averaging the temps
+    EMS_Thermostat.pausezeit            = EMS_VALUE_INT_NOTSET; // light medium heavy
+    EMS_Thermostat.partyzeit            = EMS_VALUE_INT_NOTSET; // light medium heavy
     EMS_Thermostat.max_vorlauf_reached  = 0; 
     EMS_Thermostat.urlaub_modus         = 0;
     EMS_Thermostat.sommer_modus         = 0;
@@ -878,14 +882,22 @@ void _ems_processTelegram(_EMS_RxTelegram * EMS_RxTelegram) {
             // is it common type for everyone?
             // is it for us? So the src must match with either the boiler, thermostat or other devices
             if ((EMS_Types[i].model_id == EMS_MODEL_ALL)
-                || ((src == EMS_Boiler.type_id) || (src == EMS_Thermostat.type_id) || (src == EMS_ID_SM10))) {
+                || ((src == EMS_Boiler.type_id) || (src == EMS_Thermostat.type_id) || (src == EMS_ID_SM10))) { //lobocobra
                 typeFound = true;
                 break;
             }
         }
         i++;
     }
-    //myDebug("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT OFFSET %d type: %d src:%d", offset,type,src); //lobocobra info
+    myDebug("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT OFFSET %d type: %d src:%d", offset,type,src); //lobocobra info
+    if ( src == 16 && type == 73 && offset == 85) { // lobocobra, ok we get the 0x49... handle it
+    EMS_Thermostat.pausezeit  = _toByte(0); //send 0b 90 49 55 01 (pos 0 as we read from 55)
+    EMS_Thermostat.partyzeit  = _toByte(1); //send 0b 90 49 56 01 (pos 1 as we read from 55)
+    EMS_Sys_Status.emsTxStatus = EMS_TX_STATUS_IDLE;  
+    EMS_Sys_Status.emsRefreshed = true; // triggers a send the values back via MQTT
+    return;
+    }
+
     if ( src == 16 && type == 71 && offset == 22) { // lobocobra, ok we get the 2nd part of 0x47... handle it
     EMS_Thermostat.maxvorlauf         = _toByte(13); // read max temp temp send 0b 90 47 23 01 !!RC35 other offset
     EMS_Thermostat.auslegungstemp     = _toByte(14); // read max temp at min outside temp send 0b 90 47 24 01 !!RC36 other offset
@@ -1284,6 +1296,15 @@ void _process_AnlageParamSet(uint8_t src, uint8_t * data, uint8_t length) {
     EMS_Thermostat.minoutsidetemp   = _toByte(5);
     EMS_Thermostat.housetype        = _toByte(6);
     EMS_Thermostat.tempaveragebool  = _toByte(21); //send 0b 90 a5 15 01 (position 21= hex 15)
+    myDebug("************************************* Anlageparamset %d",EMS_Thermostat.housetype);    
+}
+ /* type 0x49 - for reading the mode from the RC35 thermostat (0x10)
+ * received only after requested
+ */
+void _process_HK2Schaltzeiten(uint8_t src, uint8_t * data, uint8_t length) {
+    EMS_Thermostat.pausezeit  = _toByte(1); //send 0b 90 49 55 01 (pos 1 as we read from 55)
+    EMS_Thermostat.partyzeit  = _toByte(2); //send 0b 90 49 56 01 (pos 2 as we read from 55)
+    myDebug("*********************************** Pause h %d Party h %d",EMS_Thermostat.pausezeit,EMS_Thermostat.partyzeit);
 }
 // lobocobra end
 
@@ -1605,6 +1626,9 @@ void ems_getThermostatValues() {
             ems_doReadCommand(EMS_TYPE_RC35Set_HC2, type);           // to get the mode
             //lobocobra start here we read regularily the data
             ems_doReadCommand(EMS_TYPE_AnlageParamSet, type);        // get PARAM settings
+            //ems_doReadCommand(EMS_TYPE_HK2Schaltzeiten, type);     // would read from 0 I need 56
+            char Str2[] = "0b 90 49 55 20";                           // read 2nd part of 0x49 starting from DEC 85 
+            ems_sendRawTelegram((char *)&Str2);                       // read 2nd part of 0x49 starting from DEC 85
             //ems_doReadCommand(EMS_TYPE_RC35Set_HC2, type, 21);     // => did not work, so I write it directly
             char Str[] = "0b 90 47 16 20";                           // read 2nd part of 0x47 starting from DEC 22 
             ems_sendRawTelegram((char *)&Str);                       // read 2nd part of 0x47 starting from DEC 22 
