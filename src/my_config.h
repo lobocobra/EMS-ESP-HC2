@@ -20,10 +20,11 @@
 #define MQTT_RETAIN false
 #define MQTT_KEEPALIVE 120 // 2 minutes
 #define MQTT_QOS 1
-#define MQTT_MAX_SIZE 700 // max size of a JSON object. See https://arduinojson.org/v6/assistant/
+#define MQTT_MAX_SIZE 700 // max size of a JSON object. See https://arduinojson.org/v6/assistant/ //lobocobra was 700
 
 // MQTT CMD for thermostat
 #define TOPIC_THERMOSTAT_DATA "thermostat_data"                    // for sending thermostat values to MQTT
+#define TOPIC_THERMOSTAT2_DATA "thermostat2_data"                  // for sending thermostat values to MQTT lobocobra, MQTT was too long so I made 2nd
 #define TOPIC_THERMOSTAT_CMD_TEMP "thermostat_cmd_temp"            // for received thermostat temp changes via MQTT
 #define TOPIC_THERMOSTAT_CMD_MODE "thermostat_cmd_mode"            // for received thermostat mode changes via MQTT
 #define TOPIC_THERMOSTAT_CMD_HC "thermostat_cmd_hc"                // for received thermostat hc number changes via MQTT
@@ -31,39 +32,51 @@
 #define TOPIC_THERMOSTAT_CMD_NIGHTTEMP "thermostat_nighttemp"      // RC35 specific
 #define TOPIC_THERMOSTAT_CMD_HOLIDAYTEMP "thermostat_holidaytemp"  // RC35 specific
 //lobocobra start
-#define TOPIC_MQTT_CMD_RAW "mqtt_cmd_raw"                          // send a RAW command
-#define THERMOSTAT_CMD_AUSSCHALTHYSTERESE "ausschalthysterese"    // positive value heating on when above x° 
-#define THERMOSTAT_CMD_EINSCHALTHYSTERESE "einschalthysterese"    // negative value heating on when below x°
-#define THERMOSTAT_CMD_ANTIPENDELZEIT "antipendelzeit"            // min time between 2 starts
-#define THERMOSTAT_CMD_KESSELPUMENNACHLAUF "kesselpumennachlauf"  //  pump running longer
-#define THERMOSTAT_CMD_AUSLEGUNGSTEMP "auslegungstemp"//  max vorlauf at min temp
-#define THERMOSTAT_CMD_MAXVORLAUF "maxvorlauf"//  max Vorlauf water temp
-#define THERMOSTAT_CMD_ROOMOFFSET "roomoffset"//  offset Parallelverschiebenung
-#define THERMOSTAT_CMD_MINOUTSIDETEMP "minoutsidetemp"//  offset Parallelverschiebenung
-#define THERMOSTAT_CMD_HOUSETYPE "housetype"//  offset Parallelverschiebenung
-#define THERMOSTAT_CMD_TEMPAVERAGEBOOL "tempaveragebool"//  offset Parallelverschiebenung
+#define TOPIC_MQTT_CMD_RAW "mqtt_cmd_raw"                           // send a RAW command
+#define THERMOSTAT_CMD_AUSSCHALTHYSTERESE "ausschalthysterese"      // positive value heating on when above x° 
+#define THERMOSTAT_CMD_EINSCHALTHYSTERESE "einschalthysterese"      // negative value heating on when below x°
+#define THERMOSTAT_CMD_ANTIPENDELZEIT "antipendelzeit"              // min time between 2 starts
+#define THERMOSTAT_CMD_KESSELPUMENNACHLAUF "kesselpumennachlauf"    //  pump running longer
+#define THERMOSTAT_CMD_AUSLEGUNGSTEMP "auslegungstemp"              //  auslegungstemp minimal
+#define THERMOSTAT_CMD_HEIZTURBO_TILL_NEXT "heizturbo_till_next"    //  set new temp till next change
+#define THERMOSTAT_CMD_MAXVORLAUF "maxvorlauf"                      //  max Vorlauf water temp
+#define THERMOSTAT_CMD_MINVORLAUF "minvorlauf"                      //  min Vorlauf water temp
+#define THERMOSTAT_CMD_ROOMOFFSET "roomoffset"                      //  offset Parallelverschiebenung
+#define THERMOSTAT_CMD_MINOUTSIDETEMP "minoutsidetemp"              //  min oudside temp in region
+#define THERMOSTAT_CMD_HOUSETYPE "housetype"                        //  leicht mittel schwer
+#define THERMOSTAT_CMD_TEMPAVERAGEBOOL "tempaveragebool"            //  Temperaturdämpfung
+#define THERMOSTAT_CMD_SOMMERSCHWELLE_TEMP "sommerschwelle_temp"    // RC35 specific
 //lobocobra end
 // MWTT subscribe 
-#define THERMOSTAT_CURRTEMP "thermostat_currtemp"                  // current temperature
-#define THERMOSTAT_SELTEMP "thermostat_seltemp"                    // selected temperature
-#define THERMOSTAT_HC "thermostat_hc"                              // which heating circuit number
-#define THERMOSTAT_MODE "thermostat_mode"                          // mode
-#define THERMOSTAT_DAYTEMP "thermostat_daytemp"                    // RC35 specific
-#define THERMOSTAT_NIGHTTEMP "thermostat_nighttemp"                // RC35 specific
-#define THERMOSTAT_HOLIDAYTEMP "thermostat_holidaytemp"            // RC35 specific
-#define THERMOSTAT_HEATINGTYPE "themrostat_heatingtype"            // RC35 specific (3=floorheating)
-#define THERMOSTAT_CIRCUITCALCTEMP "thermostat_circuitcalctemp"    // RC35 specific
+#define THERMOSTAT_CURRTEMP "thermostat_currtemp"                   // current temperature
+#define THERMOSTAT_SELTEMP "thermostat_seltemp"                     // selected temperature
+#define THERMOSTAT_HC "thermostat_hc"                               // which heating circuit number
+#define THERMOSTAT_MODE "thermostat_mode"                           // mode
+#define THERMOSTAT_DAYTEMP "thermostat_daytemp"                     // RC35 specific
+#define THERMOSTAT_NIGHTTEMP "thermostat_nighttemp"                 // RC35 specific
+#define THERMOSTAT_HOLIDAYTEMP "thermostat_holidaytemp"             // RC35 specific
+#define THERMOSTAT_HEATINGTYPE "themrostat_heatingtype"             // RC35 specific (3=floorheating)
+#define THERMOSTAT_CIRCUITCALCTEMP "thermostat_circuitcalctemp"     // RC35 specific
+#define THERMOSTAT_SOMMERSCHWELLE_TEMP "sommerschwelle_temp"        // RC35 specific
+#define THERMOSTAT_SOMMER_MODUS "sommer_modus"                      // RC35 specific
+#define THERMOSTAT_URLAUB_MODUS "urlaub_modus"                      // RC35 specific
+#define THERMOSTAT_MAX_VORLAUF_REACHED "max_vorlauf_reached"        // RC35 specific
+
+
+
 // lobocobra start
-#define THERMOSTAT_AUSSCHALTHYSTERESE "ausschalthysterese"    // positive value heating on when above x° 
-#define THERMOSTAT_EINSCHALTHYSTERESE "einschalthysterese"    // negative value heating on when below x°
-#define THERMOSTAT_ANTIPENDELZEIT "antipendelzeit"            // min time between 2 starts
-#define THERMOSTAT_KESSELPUMENNACHLAUF "kesselpumennachlauf"  //  pump running longer
-#define THERMOSTAT_AUSLEGUNGSTEMP "auslegungstemp"//  max vorlauf at min temp
-#define THERMOSTAT_MAXVORLAUF "maxvorlauf"//  max Vorlauf water temp
-#define THERMOSTAT_ROOMOFFSET "roomoffset"//  offset Parallelverschiebenung
-#define THERMOSTAT_MINOUTSIDETEMP "minoutsidetemp"//  offset Parallelverschiebenung
-#define THERMOSTAT_HOUSETYPE "housetype"//  offset Parallelverschiebenung
-#define THERMOSTAT_TEMPAVERAGEBOOL "tempaveragebool"//  offset Parallelverschiebenung
+#define THERMOSTAT_AUSSCHALTHYSTERESE "ausschalthysterese"          // positive value heating on when above x° 
+#define THERMOSTAT_EINSCHALTHYSTERESE "einschalthysterese"          // negative value heating on when below x°
+#define THERMOSTAT_ANTIPENDELZEIT "antipendelzeit"                  // min time between 2 starts
+#define THERMOSTAT_KESSELPUMENNACHLAUF "kesselpumennachlauf"        //  pump running longer
+#define THERMOSTAT_AUSLEGUNGSTEMP "auslegungstemp"                  //  max vorlauf at min temp
+#define THERMOSTAT_HEIZTURBO_TILL_NEXT "heizturbo_till_next"        //  set new temp till next change
+#define THERMOSTAT_MAXVORLAUF "maxvorlauf"                          //  max Vorlauf water temp
+#define THERMOSTAT_MINVORLAUF "minvorlauf"                          //  min Vorlauf water temp
+#define THERMOSTAT_ROOMOFFSET "roomoffset"                          //  offset Parallelverschiebenung
+#define THERMOSTAT_MINOUTSIDETEMP "minoutsidetemp"                  //  Auslegung Minimal
+#define THERMOSTAT_HOUSETYPE "housetype"                            //  Leicht Mittel Schwer
+#define THERMOSTAT_TEMPAVERAGEBOOL "tempaveragebool"                //  Temperatur Dämpfung ein
 // lobocobra end
 
 // MQTT for boiler

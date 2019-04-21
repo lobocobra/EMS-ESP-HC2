@@ -223,10 +223,15 @@ void ems_init() {
     EMS_Thermostat.kesselpumennachlauf  = EMS_VALUE_INT_NOTSET; // pump running longer
     EMS_Thermostat.auslegungstemp       = EMS_VALUE_INT_NOTSET; // temp at minimum temp 
     EMS_Thermostat.maxvorlauf           = EMS_VALUE_INT_NOTSET; // max temp in heating circuit
+    EMS_Thermostat.heizturbo_till_next  = EMS_VALUE_INT_NOTSET; // new temp till next change
     EMS_Thermostat.roomoffset           = EMS_VALUE_INT_NOTSET; // offset temp of the curve
     EMS_Thermostat.minoutsidetemp       = EMS_VALUE_INT_NOTSET; // minimum temp in region
     EMS_Thermostat.housetype            = EMS_VALUE_INT_NOTSET; // light medium heavy
     EMS_Thermostat.tempaveragebool      = false; // activate averaging the temps
+    EMS_Thermostat.max_vorlauf_reached  = 0; 
+    EMS_Thermostat.urlaub_modus         = 0;
+    EMS_Thermostat.sommer_modus         = 0;
+
     //lobocobra end
 
 
@@ -882,8 +887,9 @@ void _ems_processTelegram(_EMS_RxTelegram * EMS_RxTelegram) {
     }
     //myDebug("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT OFFSET %d type: %d src:%d", offset,type,src); //lobocobra info
     if ( src == 16 && type == 71 && offset == 22) { // lobocobra, ok we get the 2nd part of 0x47... handle it
-    EMS_Thermostat.maxvorlauf         = _toByte(13); // read max temp temp send 0b 90 47 23 01
-    EMS_Thermostat.auslegungstemp     = _toByte(14); // read max temp at min outside temp send 0b 90 47 24 01 
+    EMS_Thermostat.maxvorlauf         = _toByte(13); // read max temp temp send 0b 90 47 23 01 !!RC35 other offset
+    EMS_Thermostat.auslegungstemp     = _toByte(14); // read max temp at min outside temp send 0b 90 47 24 01 !!RC36 other offset
+    EMS_Thermostat.heizturbo_till_next =_toByte(15); // read max temp temp send 0b 90 47 25 01 !!RC35 other offset x2
     EMS_Sys_Status.emsTxStatus = EMS_TX_STATUS_IDLE;  
     EMS_Sys_Status.emsRefreshed = true; // triggers a send the values back via MQTT
     return;
@@ -1211,7 +1217,10 @@ void _process_RC35StatusMessage(uint8_t src, uint8_t * data, uint8_t length) {
     } else {
         EMS_Thermostat.curr_roomTemp = _toShort(EMS_OFFSET_RC35StatusMessage_curr);
     }
+    EMS_Thermostat.urlaub_modus = bitRead(data[0], 5); // get urlaub mode flag
+    EMS_Thermostat.sommer_modus = bitRead(data[EMS_OFFSET_RC35Get_mode_day], 0); // get sommer mode flag
     EMS_Thermostat.day_mode = bitRead(data[EMS_OFFSET_RC35Get_mode_day], 1); // get day mode flag
+    EMS_Thermostat.max_vorlauf_reached = bitRead(data[EMS_OFFSET_RC35Get_mode_day], 5); // get max vorlauf flag
 
     EMS_Thermostat.circuitcalctemp = data[EMS_OFFSET_RC35Set_circuitcalctemp]; // 0x48 calculated temperature Vorlauf bit 14
 
@@ -1290,10 +1299,10 @@ void _process_RC35Set(uint8_t src, uint8_t * data, uint8_t length) {
     EMS_Thermostat.nighttemp   = _toByte(EMS_OFFSET_RC35Set_temp_night);   // is * 2
     EMS_Thermostat.holidaytemp = _toByte(EMS_OFFSET_RC35Set_temp_holiday); // is * 2
     EMS_Thermostat.heatingtype = _toByte(EMS_OFFSET_RC35Set_heatingtype);  // byte 0 bit floor heating = 3 0x47
+    EMS_Thermostat.sommerschwelletemp = _toByte(22);  // byte 0 bit floor heating = 3 0x47
+    EMS_Thermostat.minvorlauf         = _toByte(16);  // read max temp temp send 0b 90 47 10 01 !!Max Vorlauf is other region
     //lobocobra start
     EMS_Thermostat.roomoffset         = _toByte(06); // read offset temp at min outside temp send 0b 90 47 06 01
-    //EMS_Thermostat.maxvorlauf         = _toByte(35); // read max temp temp send 0b 90 47 23 01
-    //EMS_Thermostat.auslegungstemp     = _toByte(36); // read max temp at min outside temp send 0b 90 47 24 01    
     //lobocobra end
     EMS_Sys_Status.emsRefreshed = true; // triggers a send the values back via MQTT
 }

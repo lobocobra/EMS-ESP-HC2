@@ -554,10 +554,11 @@ void publishValues(bool force) {
     CRC32                             crc;
     uint32_t                          fchecksum;
 
-    static uint8_t  last_boilerActive            = 0xFF; // for remembering last setting of the tap water or heating on/off
-    static uint32_t previousBoilerPublishCRC     = 0;    // CRC check for boiler values
-    static uint32_t previousThermostatPublishCRC = 0;    // CRC check for thermostat values
-    static uint32_t previousOtherPublishCRC      = 0;    // CRC check for other values (e.g. SM10)
+    static uint8_t  last_boilerActive             = 0xFF; // for remembering last setting of the tap water or heating on/off
+    static uint32_t previousBoilerPublishCRC      = 0;    // CRC check for boiler values
+    static uint32_t previousThermostatPublishCRC  = 0;    // CRC check for thermostat values
+    static uint32_t previousThermostat2PublishCRC = 0;    // lobocobra CRC check for thermostat values
+    static uint32_t previousOtherPublishCRC       = 0;    // CRC check for other values (e.g. SM10)
 
     JsonObject rootBoiler = doc.to<JsonObject>();
 
@@ -625,47 +626,38 @@ void publishValues(bool force) {
     // handle the thermostat values separately
     if (ems_getThermostatEnabled()) {
         // only send thermostat values if we actually have them
-        if ((EMS_Thermostat.curr_roomTemp <= 0) && (EMS_Thermostat.setpoint_roomTemp <= 0))
-            return;
-
+        if ((EMS_Thermostat.curr_roomTemp <= 0) && (EMS_Thermostat.setpoint_roomTemp <= 0) && (EMS_Thermostat.daytemp <=0)) {//lobocobra prevent due to bug, no mqtt
+           return;
+        }
         // build new json object
         doc.clear();
         JsonObject rootThermostat = doc.to<JsonObject>();
-
         rootThermostat[THERMOSTAT_HC] = _int_to_char(s, EMSESP_Status.heating_circuit);
-
         if ((ems_getThermostatModel() == EMS_MODEL_EASY) || (ems_getThermostatModel() == EMS_MODEL_BOSCHEASY)) {
             rootThermostat[THERMOSTAT_SELTEMP]  = _short_to_char(s, EMS_Thermostat.setpoint_roomTemp, 10);
             rootThermostat[THERMOSTAT_CURRTEMP] = _short_to_char(s, EMS_Thermostat.curr_roomTemp, 10);
         } else {
-            rootThermostat[THERMOSTAT_SELTEMP]  = _int_to_char(s, EMS_Thermostat.setpoint_roomTemp, 2);
-            rootThermostat[THERMOSTAT_CURRTEMP] = _int_to_char(s, EMS_Thermostat.curr_roomTemp, 10);
-
+            rootThermostat[THERMOSTAT_SELTEMP]         = _int_to_char(s, EMS_Thermostat.setpoint_roomTemp, 2);
+            rootThermostat[THERMOSTAT_CURRTEMP]        = _int_to_char(s, EMS_Thermostat.curr_roomTemp, 10);
             rootThermostat[THERMOSTAT_DAYTEMP]         = _int_to_char(s, EMS_Thermostat.daytemp, 2);
             rootThermostat[THERMOSTAT_NIGHTTEMP]       = _int_to_char(s, EMS_Thermostat.nighttemp, 2);
             rootThermostat[THERMOSTAT_HOLIDAYTEMP]     = _int_to_char(s, EMS_Thermostat.holidaytemp, 2);
             rootThermostat[THERMOSTAT_HEATINGTYPE]     = _int_to_char(s, EMS_Thermostat.heatingtype);
             rootThermostat[THERMOSTAT_CIRCUITCALCTEMP] = _int_to_char(s, EMS_Thermostat.circuitcalctemp);
             // lobocobra start
-            rootThermostat[THERMOSTAT_AUSSCHALTHYSTERESE]   = _int_to_char(s, EMS_Thermostat.ausschalthysterese);
-            rootThermostat[THERMOSTAT_EINSCHALTHYSTERESE]   = itoa ( (256 - EMS_Thermostat.einschalthysterese)*-1,s,10); 
-            rootThermostat[THERMOSTAT_ANTIPENDELZEIT]       = _int_to_char(s, EMS_Thermostat.antipendelzeit);
-            rootThermostat[THERMOSTAT_KESSELPUMENNACHLAUF]  = _int_to_char(s, EMS_Thermostat.kesselpumennachlauf);
-            rootThermostat[THERMOSTAT_MAXVORLAUF]           = _int_to_char(s, EMS_Thermostat.maxvorlauf);
-            rootThermostat[THERMOSTAT_AUSLEGUNGSTEMP]       = _int_to_char(s, EMS_Thermostat.auslegungstemp); 
+            rootThermostat[THERMOSTAT_MINVORLAUF]      = _int_to_char(s, EMS_Thermostat.minvorlauf);       // 0x47,1
+            rootThermostat[THERMOSTAT_MAXVORLAUF]      = _int_to_char(s, EMS_Thermostat.maxvorlauf);       // 0x47,2  
+            rootThermostat[THERMOSTAT_HEIZTURBO_TILL_NEXT]      = _int_to_char(s, EMS_Thermostat.heizturbo_till_next );       // 0x47,2         
+            rootThermostat[THERMOSTAT_AUSLEGUNGSTEMP]  = _int_to_char(s, EMS_Thermostat.auslegungstemp);   // 0x47,2
             
-            //myDebug("EMS_Thermostat.roomoffset %d",EMS_Thermostat.roomoffset);
             char buffer[16]      = {0};
             (EMS_Thermostat.roomoffset > 10) ? 
-                (rootThermostat[THERMOSTAT_ROOMOFFSET] = _float_to_char(buffer, (float)(256 - EMS_Thermostat.roomoffset)/-2) ) :
-                (rootThermostat[THERMOSTAT_ROOMOFFSET] = _float_to_char(buffer, (float)EMS_Thermostat.roomoffset/2) );
-
-            if (EMS_Thermostat.minoutsidetemp != 255) {rootThermostat[THERMOSTAT_MINOUTSIDETEMP] = itoa ( (256-EMS_Thermostat.minoutsidetemp)*-1,s,10); };//data is read async and thus later, avoid that we have the NO_DATA flag interpreted as -1
-            rootThermostat[THERMOSTAT_HOUSETYPE]            = _int_to_char(s, EMS_Thermostat.housetype); 
-            rootThermostat[THERMOSTAT_TEMPAVERAGEBOOL]      = _int_to_char(s, EMS_Thermostat.tempaveragebool); 
+                (rootThermostat[THERMOSTAT_ROOMOFFSET]      = _float_to_char(buffer, (float)(256 - EMS_Thermostat.roomoffset)/-2) ) :
+                (rootThermostat[THERMOSTAT_ROOMOFFSET]      = _float_to_char(buffer, (float)EMS_Thermostat.roomoffset/2) ); // 0x47,1
+            rootThermostat[THERMOSTAT_SOMMERSCHWELLE_TEMP]  = _int_to_char(s, EMS_Thermostat.sommerschwelletemp); // 0x47,1
             // lobocobra end
         }
-
+ 
         // RC20 has different mode settings
         if (ems_getThermostatModel() == EMS_MODEL_RC20) {
             if (EMS_Thermostat.mode == 0) {
@@ -694,15 +686,54 @@ void publishValues(bool force) {
             crc.update(data[i]);
         }
         fchecksum = crc.finalize();
+        myDebug(">>>>>>>>>>>>>>> 1 previousThermostatPublishCRC: %d  fchecksum %d force %d ",previousThermostatPublishCRC, fchecksum, force);
         if ((previousThermostatPublishCRC != fchecksum) || force) {
             previousThermostatPublishCRC = fchecksum;
             myDebugLog("Publishing thermostat data via MQTT");
 
             // send values via MQTT
-            myESP.mqttPublish(TOPIC_THERMOSTAT_DATA, data);
+        myESP.mqttPublish(TOPIC_THERMOSTAT_DATA, data);
         }
     }
+/////////
+       // build new json object // crc will not work if we have too many data
+        doc.clear();
+        JsonObject rootThermostat2 = doc.to<JsonObject>();
 
+           // lobocobra start
+           // 0xA5
+            if (EMS_Thermostat.minoutsidetemp != 255) {rootThermostat2[THERMOSTAT_MINOUTSIDETEMP] = itoa ( (256-EMS_Thermostat.minoutsidetemp)*-1,s,10); };//data is read async and thus later, avoid that we have the NO_DATA flag interpreted as -1 0xA5
+            rootThermostat2[THERMOSTAT_HOUSETYPE]            = _int_to_char(s, EMS_Thermostat.housetype);                 // 0xA5
+            rootThermostat2[THERMOSTAT_TEMPAVERAGEBOOL]      = _int_to_char(s, EMS_Thermostat.tempaveragebool);           // 0xA5
+            // 0x48 
+            rootThermostat2[THERMOSTAT_MAX_VORLAUF_REACHED]  = _int_to_char(s, EMS_Thermostat.max_vorlauf_reached);       // 0x48
+            rootThermostat2[THERMOSTAT_URLAUB_MODUS]         = _int_to_char(s, EMS_Thermostat.urlaub_modus);              // 0x48
+            rootThermostat2[THERMOSTAT_SOMMER_MODUS]         = _int_to_char(s, EMS_Thermostat.sommer_modus);              // 0x48
+            // 0x16
+            rootThermostat2[THERMOSTAT_AUSSCHALTHYSTERESE]   = _int_to_char(s, EMS_Thermostat.ausschalthysterese);        // 0x16
+            rootThermostat2[THERMOSTAT_EINSCHALTHYSTERESE]   = itoa ( (256 - EMS_Thermostat.einschalthysterese)*-1,s,10); // 0x16
+            rootThermostat2[THERMOSTAT_ANTIPENDELZEIT]       = _int_to_char(s, EMS_Thermostat.antipendelzeit);            // 0x16
+            rootThermostat2[THERMOSTAT_KESSELPUMENNACHLAUF]  = _int_to_char(s, EMS_Thermostat.kesselpumennachlauf);       // 0x16
+            // lobocobra end
+           
+        data[0] = '\0'; // reset data for next package
+        serializeJson(doc, data, sizeof(data));
+        // calculate new CRC
+        crc.reset();
+        for (size_t i = 0; i < measureJson(doc) - 1; i++) {
+            crc.update(data[i]);
+        }
+        fchecksum = crc.finalize();
+        myDebug(">>>>>>>>>>>>>>> 2 previousThermostatPublishCRC: %d  fchecksum %d force %d",previousThermostat2PublishCRC, fchecksum, force);
+        //if ((previousThermostat2PublishCRC != fchecksum) || force) {
+        myDebug(">>>>>>>>>> lobo Do we pass here MQTT? 4");
+             previousThermostat2PublishCRC = fchecksum;
+            myDebugLog("Publishing thermostat2 data via MQTT");
+            // send values via MQTT
+        myESP.mqttPublish(TOPIC_THERMOSTAT2_DATA, data);
+        myDebug(">>>>>>>>>> lobo Do we pass here MQTT? 5");
+        //}
+////////
     // handle the other values separately
     // For SM10 Solar Module
     if (EMS_Other.SM10) {
@@ -1286,11 +1317,14 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
         myESP.mqttSubscribe(THERMOSTAT_CMD_ANTIPENDELZEIT);
         myESP.mqttSubscribe(THERMOSTAT_CMD_AUSLEGUNGSTEMP);
         myESP.mqttSubscribe(THERMOSTAT_CMD_MAXVORLAUF);
+        myESP.mqttSubscribe(THERMOSTAT_CMD_MINVORLAUF);
+        myESP.mqttSubscribe(THERMOSTAT_HEIZTURBO_TILL_NEXT);
         myESP.mqttSubscribe(THERMOSTAT_CMD_ROOMOFFSET);
         myESP.mqttSubscribe(THERMOSTAT_CMD_MINOUTSIDETEMP);
         myESP.mqttSubscribe(THERMOSTAT_CMD_HOUSETYPE);
         myESP.mqttSubscribe(THERMOSTAT_CMD_TEMPAVERAGEBOOL);
-        //lobocobra end
+        myESP.mqttSubscribe(THERMOSTAT_CMD_SOMMERSCHWELLE_TEMP);
+//lobocobra end
 
         // publish the status of the Shower parameters
         myESP.mqttPublish(TOPIC_SHOWER_TIMER, EMSESP_Status.shower_timer ? "1" : "0");
@@ -1394,7 +1428,24 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
             myDebug("MQTT topic: New Auslegungstemperatur %s", message);  
             publishValues(true); // needed in order to have mqtt updated           
-        }   
+        }  
+        if (strcmp(topic,THERMOSTAT_CMD_HEIZTURBO_TILL_NEXT ) == 0) {
+            //convert message to INT and control it
+            char buffer[16]      = {0};
+            float t     = strtof((char *)message, 0);
+            if (t<5 || t> 35) {
+               myDebug("MQTT topic: Max Turbo temp not accepted (5-35), abort on temp: %s", _float_to_char(buffer, t));
+               return;
+            }
+            // convert temp and multiplicate it by 2 for EMS bus
+            t = (t*2); 
+            // code to change send send 0b 10 47 06 xx (temp*2)
+            char Atemp[]         = "0b 10 47 25 ";
+            //convert INT to hex & prepare HEX string to send 
+            ems_sendRawTelegram( strcat (Atemp, _hextoa((int)t, buffer)) );  
+            myDebug("MQTT topic: New Turbo Temp %s", _float_to_char(buffer, t));
+            publishValues(true); // needed in order to have mqtt updated
+        } 
         if (strcmp(topic,THERMOSTAT_CMD_MAXVORLAUF ) == 0) {
             //convert message to INT and control it
             uint8_t t = atoi((char *)message);
@@ -1409,7 +1460,22 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
             myDebug("MQTT topic: New Max Vorlauf %s", message);
             publishValues(true); // needed in order to have mqtt updated
-        }  
+        } 
+        if (strcmp(topic,THERMOSTAT_CMD_MINVORLAUF ) == 0) {
+            //convert message to INT and control it
+            uint8_t t = atoi((char *)message);
+            if (t<5|| t> 25) {
+                myDebug("MQTT topic: Min Vorlauf not accepted (5-26°), abort on temp: %s", message);
+                return;
+            }
+            // code to change send 0b 10 47 10 xx (temp)
+            char Atemp[]         = "0b 10 47 10 ";
+            //convert INT to hex & prepare HEX string to send 
+            char buffer[16]      = {0};
+            ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
+            myDebug("MQTT topic: New Min Vorlauf %s", message);
+            publishValues(true); // needed in order to have mqtt updated
+        }          
         if (strcmp(topic,THERMOSTAT_CMD_ROOMOFFSET ) == 0) {
             //convert message to INT and control it
             char buffer[16]      = {0};
@@ -1427,7 +1493,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             myDebug("MQTT topic: New RoomOffset %s", _float_to_char(buffer, t));
             publishValues(true); // needed in order to have mqtt updated
         }    
-        
         if (strcmp(topic,THERMOSTAT_CMD_MINOUTSIDETEMP ) == 0) {
             //convert message to INT and control it
             uint8_t t = atoi((char *)message);    
@@ -1489,6 +1554,21 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             myDebug("MQTT topic: Kesselpumpennachlauf min %s", message);  
             publishValues(true); // needed in order to have mqtt updated
         }
+        if (strcmp(topic,THERMOSTAT_CMD_SOMMERSCHWELLE_TEMP ) == 0) {
+            //convert message to INT and control it
+            uint8_t t = atoi((char *)message);
+            if (t<10 || t> 30) {
+                myDebug("MQTT topic: Sommerschwelle not accepted (10-30°), abort on temp: %s", message);
+                return;
+            }
+            // code to change send 0b 10 47 16 xx (temp)
+            char Atemp[]         = "0b 10 47 16 ";
+            //convert INT to hex & prepare HEX string to send 
+            char buffer[16]      = {0};
+            ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
+            myDebug("MQTT topic: New Sommerschwelle Temp %s", message);
+            publishValues(true); // needed in order to have mqtt updated
+        }  
         //lobocobra end 
 
         // set night temp value
