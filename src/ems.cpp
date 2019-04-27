@@ -889,7 +889,7 @@ void _ems_processTelegram(_EMS_RxTelegram * EMS_RxTelegram) {
         }
         i++;
     }
-    myDebug("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT OFFSET %d type: %d src:%d", offset,type,src); //lobocobra info
+    //myDebug("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT OFFSET %d type: %d src:%d", offset,type,src); //lobocobra info
     if ( src == 16 && type == 73 && offset == 85) { // lobocobra, ok we get the 0x49... handle it
     EMS_Thermostat.pausezeit  = _toByte(0); //send 0b 90 49 55 01 (pos 0 as we read from 55)
     EMS_Thermostat.partyzeit  = _toByte(1); //send 0b 90 49 56 01 (pos 1 as we read from 55)

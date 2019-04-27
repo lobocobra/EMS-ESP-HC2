@@ -647,7 +647,7 @@ void publishValues(bool force) {
             // lobocobra start
             rootThermostat[THERMOSTAT_MINVORLAUF]      = _int_to_char(s, EMS_Thermostat.minvorlauf);       // 0x47,1
             rootThermostat[THERMOSTAT_MAXVORLAUF]      = _int_to_char(s, EMS_Thermostat.maxvorlauf);       // 0x47,2  
-            rootThermostat[THERMOSTAT_HEIZTURBO_TILL_NEXT]      = _int_to_char(s, EMS_Thermostat.heizturbo_till_next );       // 0x47,2         
+            rootThermostat[THERMOSTAT_HEIZTURBO_TILL_NEXT]      = _int_to_char(s, EMS_Thermostat.heizturbo_till_next,2 );       // 0x47,2         
             rootThermostat[THERMOSTAT_AUSLEGUNGSTEMP]  = _int_to_char(s, EMS_Thermostat.auslegungstemp);   // 0x47,2
             
             char buffer[16]      = {0};
@@ -686,7 +686,7 @@ void publishValues(bool force) {
             crc.update(data[i]);
         }
         fchecksum = crc.finalize();
-        myDebug(">>>>>>>>>>>>>>> 1 previousThermostatPublishCRC: %d  fchecksum %d force %d ",previousThermostatPublishCRC, fchecksum, force);
+        //myDebug(">>>>>>>>>>>>>>> 1 previousThermostatPublishCRC: %d  fchecksum %d force %d ",previousThermostatPublishCRC, fchecksum, force);
         if ((previousThermostatPublishCRC != fchecksum) || force) {
             previousThermostatPublishCRC = fchecksum;
             myDebugLog("Publishing thermostat data via MQTT");
@@ -728,14 +728,14 @@ void publishValues(bool force) {
             crc.update(data[i]);
         }
         fchecksum = crc.finalize();
-        myDebug(">>>>>>>>>>>>>>> 2 previousThermostatPublishCRC: %d  fchecksum %d force %d",previousThermostat2PublishCRC, fchecksum, force);
+        //myDebug(">>>>>>>>>>>>>>> 2 previousThermostatPublishCRC: %d  fchecksum %d force %d",previousThermostat2PublishCRC, fchecksum, force);
         //if ((previousThermostat2PublishCRC != fchecksum) || force) {
-        myDebug(">>>>>>>>>> lobo Do we pass here MQTT? 4");
+        //myDebug(">>>>>>>>>> lobo Do we pass here MQTT? 4");
              previousThermostat2PublishCRC = fchecksum;
             myDebugLog("Publishing thermostat2 data via MQTT");
             // send values via MQTT
         myESP.mqttPublish(TOPIC_THERMOSTAT2_DATA, data);
-        myDebug(">>>>>>>>>> lobo Do we pass here MQTT? 5");
+        //myDebug(">>>>>>>>>> lobo Do we pass here MQTT? 5");
         //}
 ////////
     // handle the other values separately
@@ -1439,8 +1439,8 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             //convert message to INT and control it
             char buffer[16]      = {0};
             float t     = strtof((char *)message, 0);
-            if (t<5 || t> 35) {
-               myDebug("MQTT topic: Max Turbo temp not accepted (5-35), abort on temp: %s", _float_to_char(buffer, t));
+            if ((t<15 && t !=0) || t> 35) {
+               myDebug("MQTT topic: Max Turbo temp not accepted (0 and 15-35), abort on temp: %s", _float_to_char(buffer, t));
                return;
             }
             // convert temp and multiplicate it by 2 for EMS bus
