@@ -187,7 +187,7 @@ typedef struct {           // UBAParameterWW
     uint8_t  curBurnPow;         // Burner current power
     uint16_t flameCurr;          // Flame current in micro amps
     // lobocobra start
-    uint16_t airInflow;
+    //uint16_t airInflow; nicht vorhanden = 8300 bei GB125
     // lobocobra end
     uint8_t  sysPress;           // System pressure
     char     serviceCodeChar[3]; // 2 character status/service code
@@ -195,6 +195,9 @@ typedef struct {           // UBAParameterWW
 
     // UBAMonitorSlow
     int16_t  extTemp;     // Outside temperature
+    //lobocobra start
+    int16_t abgasTemp;    // Abgas temperature
+    //lobocobra end
     int16_t  boilTemp;    // Boiler temperature
     uint8_t  pumpMod;     // Pump modulation
     uint32_t burnStarts;  // # burner starts

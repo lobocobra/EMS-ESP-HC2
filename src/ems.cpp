@@ -262,13 +262,16 @@ void ems_init() {
     EMS_Boiler.flameCurr   = EMS_VALUE_SHORT_NOTSET; // Flame current in micro amps
     EMS_Boiler.sysPress    = EMS_VALUE_INT_NOTSET;   // System pressure
     // lobocobra start initialize value
-    EMS_Boiler.airInflow  = EMS_VALUE_SHORT_NOTSET; // air inflow temp
+    // EMS_Boiler.airInflow  = EMS_VALUE_SHORT_NOTSET; // air inflow temp nicht vorhanden = 8300 bei GB125
     // lobocobra end
     strlcpy(EMS_Boiler.serviceCodeChar, "??", sizeof(EMS_Boiler.serviceCodeChar));
     EMS_Boiler.serviceCode = EMS_VALUE_SHORT_NOTSET;
 
     // UBAMonitorSlow
     EMS_Boiler.extTemp     = EMS_VALUE_SHORT_NOTSET; // Outside temperature
+    //lobocobra start
+    EMS_Boiler.abgasTemp   = EMS_VALUE_SHORT_NOTSET; // Abgas temperature
+    //lobocobra end
     EMS_Boiler.boilTemp    = EMS_VALUE_SHORT_NOTSET; // Boiler temperature
     EMS_Boiler.pumpMod     = EMS_VALUE_INT_NOTSET;   // Pump modulation
     EMS_Boiler.burnStarts  = EMS_VALUE_LONG_NOTSET;  // # burner restarts
@@ -1160,7 +1163,7 @@ void _process_UBAMonitorFast(uint8_t src, uint8_t * data, uint8_t length) {
     // system pressure. FF means missing
     EMS_Boiler.sysPress = _toByte(17); // this is *10
     // lobocobra start read value
-    EMS_Boiler.airInflow = _toShort(22); 
+    //EMS_Boiler.airInflow = _toByte(25);  nicht vorhanden = 8300 bei GB125
     // lobocobra end
     // at this point do a quick check to see if the hot water or heating is active
     _checkActive();
@@ -1172,6 +1175,7 @@ void _process_UBAMonitorFast(uint8_t src, uint8_t * data, uint8_t length) {
  */
 void _process_UBAMonitorSlow(uint8_t src, uint8_t * data, uint8_t length) {
     EMS_Boiler.extTemp     = _toShort(0); // 0x8000 if not available
+    EMS_Boiler.abgasTemp   = _toShort(4); // 0x8000 if not available
     EMS_Boiler.boilTemp    = _toShort(2); // 0x8000 if not available
     EMS_Boiler.pumpMod     = _toByte(9);
     EMS_Boiler.burnStarts  = _toLong(10);
@@ -1296,7 +1300,7 @@ void _process_AnlageParamSet(uint8_t src, uint8_t * data, uint8_t length) {
     EMS_Thermostat.minoutsidetemp   = _toByte(5);
     EMS_Thermostat.housetype        = _toByte(6);
     EMS_Thermostat.tempaveragebool  = _toByte(21); //send 0b 90 a5 15 01 (position 21= hex 15)
-    myDebug("************************************* Anlageparamset %d",EMS_Thermostat.housetype);    
+    //myDebug("************************************* Anlageparamset %d",EMS_Thermostat.housetype);    
 }
  /* type 0x49 - for reading the mode from the RC35 thermostat (0x10)
  * received only after requested
@@ -1304,7 +1308,7 @@ void _process_AnlageParamSet(uint8_t src, uint8_t * data, uint8_t length) {
 void _process_HK2Schaltzeiten(uint8_t src, uint8_t * data, uint8_t length) {
     EMS_Thermostat.pausezeit  = _toByte(1); //send 0b 90 49 55 01 (pos 1 as we read from 55)
     EMS_Thermostat.partyzeit  = _toByte(2); //send 0b 90 49 56 01 (pos 2 as we read from 55)
-    myDebug("*********************************** Pause h %d Party h %d",EMS_Thermostat.pausezeit,EMS_Thermostat.partyzeit);
+    //myDebug("*********************************** Pause h %d Party h %d",EMS_Thermostat.pausezeit,EMS_Thermostat.partyzeit);
 }
 // lobocobra end
 

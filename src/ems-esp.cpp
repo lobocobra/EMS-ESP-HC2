@@ -565,6 +565,7 @@ void publishValues(bool force) {
     rootBoiler["wWSelTemp"]   = _int_to_char(s, EMS_Boiler.wWSelTemp);
     rootBoiler["selFlowTemp"] = _int_to_char(s, EMS_Boiler.selFlowTemp);
     rootBoiler["outdoorTemp"] = _short_to_char(s, EMS_Boiler.extTemp);
+    rootBoiler["abgasTemp"]   = _short_to_char(s, EMS_Boiler.abgasTemp);
     rootBoiler["wWActivated"] = _bool_to_char(s, EMS_Boiler.wWActivated);
 
     if (EMS_Boiler.wWComfort == EMS_VALUE_UBAParameterWW_wwComfort_Hot) {
@@ -593,11 +594,12 @@ void publishValues(bool force) {
     rootBoiler["ServiceCode"]       = EMS_Boiler.serviceCodeChar;
     rootBoiler["ServiceCodeNumber"] = EMS_Boiler.serviceCode;
     // lobocobra start send to mqtt
-    // not working rootBoiler["airInflow"]         = _int_to_char(s, EMS_Boiler.airInflow, 1);
-    // not working rootBoiler["flameCurr"]         = _int_to_char(s, EMS_Boiler.flameCurr,1);
     rootBoiler["burnerDays"]        = _int_to_char(s, EMS_Boiler.burnWorkMin / 1440, 1);
     rootBoiler["burnerHours"]       = _int_to_char(s, (EMS_Boiler.burnWorkMin % 1440) / 60, 1);
     rootBoiler["burnerMin"]         = _int_to_char(s, EMS_Boiler.burnWorkMin %60, 1);
+    // rootBoiler["airInflow"]         = _short_to_char(s, EMS_Boiler.airInflow, 1); nicht vorhanden = 8300 bei GB125
+    if ( (EMS_Boiler.flameCurr != 0) && (EMS_Boiler.flameCurr != EMS_VALUE_SHORT_NOTSET) ) { 
+        rootBoiler["flameCurr"]   = _short_to_char(s, EMS_Boiler.flameCurr,1); };
  // lobocobra end  
 
     serializeJson(doc, data, sizeof(data));
@@ -1449,7 +1451,7 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             char Atemp[]         = "0b 10 47 25 ";
             //convert INT to hex & prepare HEX string to send 
             ems_sendRawTelegram( strcat (Atemp, _hextoa((int)t, buffer)) );  
-            myDebug("MQTT topic: New Turbo Temp %s", _float_to_char(buffer, t));
+            myDebug("MQTT topic: New Turbo Temp %s", _float_to_char(buffer, t/2));
             publishValues(true); // needed in order to have mqtt updated
         } 
         if (strcmp(topic,THERMOSTAT_CMD_MAXVORLAUF ) == 0) {
