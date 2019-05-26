@@ -37,14 +37,14 @@ DS18 ds18;
 #define DEFAULT_HEATINGCIRCUIT 1 // default to HC1 for thermostats that support multiple heating circuits like the RC35
 
 // timers, all values are in seconds
-#define DEFAULT_PUBLISHWAIT 120 // every 2 minutes publish MQTT values, including Dallas sensors
+#define DEFAULT_PUBLISHWAIT 60 // every 2 minutes publish MQTT values, including Dallas sensors
 Ticker publishValuesTimer;
 Ticker publishSensorValuesTimer;
 
 #define SYSTEMCHECK_TIME 20 // every 20 seconds check if Boiler is online
 Ticker systemCheckTimer;
 
-#define REGULARUPDATES_TIME 60 // every minute a call is made to fetch data from EMS devices manually
+#define REGULARUPDATES_TIME 30 // every minute a call is made to fetch data from EMS devices manually
 Ticker regularUpdatesTimer;
 
 #define LEDCHECK_TIME 500 // every 1/2 second blink the heartbeat LED
@@ -652,11 +652,12 @@ void publishValues(bool force) {
             rootThermostat[THERMOSTAT_HEIZTURBO_TILL_NEXT]      = _int_to_char(s, EMS_Thermostat.heizturbo_till_next,2 );       // 0x47,2         
             rootThermostat[THERMOSTAT_AUSLEGUNGSTEMP]  = _int_to_char(s, EMS_Thermostat.auslegungstemp);   // 0x47,2
             
+            // _float_to_char did not work, so I used dtostrf, !!! 236 = unset number so I only allow valid numbers below
             char buffer[16]      = {0};
-            (EMS_Thermostat.roomoffset > 10) ? 
-                (rootThermostat[THERMOSTAT_ROOMOFFSET]      = _float_to_char(buffer, (float)(256 - EMS_Thermostat.roomoffset)/-2) ) :
-                (rootThermostat[THERMOSTAT_ROOMOFFSET]      = _float_to_char(buffer, (float)EMS_Thermostat.roomoffset/2) ); // 0x47,1
-            rootThermostat[THERMOSTAT_SOMMERSCHWELLE_TEMP]  = _int_to_char(s, EMS_Thermostat.sommerschwelletemp); // 0x47,1
+            if (EMS_Thermostat.roomoffset >= 246) rootThermostat[THERMOSTAT_ROOMOFFSET] = dtostrf((float)(EMS_Thermostat.roomoffset- 256 )/2, 4, 2, buffer);
+            if (EMS_Thermostat.roomoffset <= 10)  rootThermostat[THERMOSTAT_ROOMOFFSET] = dtostrf((float)EMS_Thermostat.roomoffset/2, 4, 2, buffer);
+                       
+            rootThermostat[THERMOSTAT_SOMMERSCHWELLE_TEMP]  = _int_to_char(s, EMS_Thermostat.sommerschwelletemp); // 0x47,1 
             // lobocobra end
         }
  
@@ -703,8 +704,8 @@ void publishValues(bool force) {
         JsonObject rootThermostat2 = doc.to<JsonObject>();
 
            // lobocobra start
-           // 0xA5
-            if (EMS_Thermostat.minoutsidetemp != 255) {rootThermostat2[THERMOSTAT_MINOUTSIDETEMP] = itoa ( (256-EMS_Thermostat.minoutsidetemp)*-1,s,10); };//data is read async and thus later, avoid that we have the NO_DATA flag interpreted as -1 0xA5
+           // 0xA5                               I used 196 as NOT SET (256-196/2=-30°)
+            if (EMS_Thermostat.minoutsidetemp != 196) {rootThermostat2[THERMOSTAT_MINOUTSIDETEMP] = itoa ( (255-EMS_Thermostat.minoutsidetemp+1)*-1,s,10); };//data is read async and thus later, avoid that we have the NO_DATA flag interpreted as -1 0xA5
             rootThermostat2[THERMOSTAT_HOUSETYPE]            = _int_to_char(s, EMS_Thermostat.housetype);                 // 0xA5
             rootThermostat2[THERMOSTAT_TEMPAVERAGEBOOL]      = _int_to_char(s, EMS_Thermostat.tempaveragebool);           // 0xA5
             // 0x48 
@@ -717,7 +718,7 @@ void publishValues(bool force) {
 
             // 0x16
             rootThermostat2[THERMOSTAT_AUSSCHALTHYSTERESE]   = _int_to_char(s, EMS_Thermostat.ausschalthysterese);        // 0x16
-            rootThermostat2[THERMOSTAT_EINSCHALTHYSTERESE]   = itoa ( (256 - EMS_Thermostat.einschalthysterese)*-1,s,10); // 0x16
+            rootThermostat2[THERMOSTAT_EINSCHALTHYSTERESE]   = itoa ( (255 - EMS_Thermostat.einschalthysterese+1)*-1,s,10); // 0x16
             rootThermostat2[THERMOSTAT_ANTIPENDELZEIT]       = _int_to_char(s, EMS_Thermostat.antipendelzeit);            // 0x16
             rootThermostat2[THERMOSTAT_KESSELPUMENNACHLAUF]  = _int_to_char(s, EMS_Thermostat.kesselpumennachlauf);       // 0x16
             // lobocobra end
@@ -732,12 +733,10 @@ void publishValues(bool force) {
         fchecksum = crc.finalize();
         //myDebug(">>>>>>>>>>>>>>> 2 previousThermostatPublishCRC: %d  fchecksum %d force %d",previousThermostat2PublishCRC, fchecksum, force);
         //if ((previousThermostat2PublishCRC != fchecksum) || force) {
-        //myDebug(">>>>>>>>>> lobo Do we pass here MQTT? 4");
-             previousThermostat2PublishCRC = fchecksum;
+            previousThermostat2PublishCRC = fchecksum;
             myDebugLog("Publishing thermostat2 data via MQTT");
             // send values via MQTT
-        myESP.mqttPublish(TOPIC_THERMOSTAT2_DATA, data);
-        //myDebug(">>>>>>>>>> lobo Do we pass here MQTT? 5");
+            myESP.mqttPublish(TOPIC_THERMOSTAT2_DATA, data);
         //}
 ////////
     // handle the other values separately

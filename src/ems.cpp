@@ -212,7 +212,7 @@ void ems_init() {
     EMS_Thermostat.type_id           = EMS_ID_NONE;
     EMS_Thermostat.read_supported    = false;
     EMS_Thermostat.write_supported   = false;
-    EMS_Thermostat.hc                = 1;                    // default heating circuit is 1
+    EMS_Thermostat.hc                = 1; 
     EMS_Thermostat.daytemp           = EMS_VALUE_INT_NOTSET; // 0x47 byte
     EMS_Thermostat.nighttemp         = EMS_VALUE_INT_NOTSET; // 0x47 byte
     EMS_Thermostat.holidaytemp       = EMS_VALUE_INT_NOTSET; // 0x47 byte
@@ -220,14 +220,14 @@ void ems_init() {
     EMS_Thermostat.circuitcalctemp   = EMS_VALUE_INT_NOTSET; // 0x48 byte 14
     //lobocobra start
     EMS_Thermostat.ausschalthysterese   = EMS_VALUE_INT_NOTSET; // positive value heating off when above x°
-    EMS_Thermostat.einschalthysterese   = EMS_VALUE_INT_NOTSET; // negative value heating on when below x°
+    EMS_Thermostat.einschalthysterese   = 196; // negative value heating on when below x° 
     EMS_Thermostat.antipendelzeit       = EMS_VALUE_INT_NOTSET; // time between 2 starts
     EMS_Thermostat.kesselpumennachlauf  = EMS_VALUE_INT_NOTSET; // pump running longer
     EMS_Thermostat.auslegungstemp       = EMS_VALUE_INT_NOTSET; // temp at minimum temp 
     EMS_Thermostat.maxvorlauf           = EMS_VALUE_INT_NOTSET; // max temp in heating circuit
     EMS_Thermostat.heizturbo_till_next  = EMS_VALUE_INT_NOTSET; // new temp till next change
-    EMS_Thermostat.roomoffset           = EMS_VALUE_INT_NOTSET; // offset temp of the curve
-    EMS_Thermostat.minoutsidetemp       = EMS_VALUE_INT_NOTSET; // minimum temp in region
+    EMS_Thermostat.roomoffset           = 236; // offset can not be 255 as this would represent -0.5 so I choose 236 as this is -20° a
+    EMS_Thermostat.minoutsidetemp       = 196; // minimum temp in region -30 = senseless input
     EMS_Thermostat.housetype            = EMS_VALUE_INT_NOTSET; // light medium heavy
     EMS_Thermostat.tempaveragebool      = false; // activate averaging the temps
     EMS_Thermostat.pausezeit            = EMS_VALUE_INT_NOTSET; // light medium heavy
@@ -894,8 +894,10 @@ void _ems_processTelegram(_EMS_RxTelegram * EMS_RxTelegram) {
     }
     //myDebug("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT OFFSET %d type: %d src:%d", offset,type,src); //lobocobra info
     if ( src == 16 && type == 73 && offset == 85) { // lobocobra, ok we get the 0x49... handle it
+    //lobocobra start
     EMS_Thermostat.pausezeit  = _toByte(0); //send 0b 90 49 55 01 (pos 0 as we read from 55)
     EMS_Thermostat.partyzeit  = _toByte(1); //send 0b 90 49 56 01 (pos 1 as we read from 55)
+    //lobocobra end
     EMS_Sys_Status.emsTxStatus = EMS_TX_STATUS_IDLE;  
     EMS_Sys_Status.emsRefreshed = true; // triggers a send the values back via MQTT
     return;
@@ -907,7 +909,7 @@ void _ems_processTelegram(_EMS_RxTelegram * EMS_RxTelegram) {
     EMS_Thermostat.heizturbo_till_next =_toByte(15); // read max temp temp send 0b 90 47 25 01 !!RC35 other offset x2
     EMS_Sys_Status.emsTxStatus = EMS_TX_STATUS_IDLE;  
     EMS_Sys_Status.emsRefreshed = true; // triggers a send the values back via MQTT
-    return;
+    return; // we exit as we are done
     }
     // if it's a common type (across ems devices) or something specifically for us process it.
     // dest will be EMS_ID_NONE and offset 0x00 for a broadcast message
@@ -1319,15 +1321,17 @@ void _process_HK2Schaltzeiten(uint8_t src, uint8_t * data, uint8_t length) {
  */
 void _process_RC35Set(uint8_t src, uint8_t * data, uint8_t length) {
     EMS_Thermostat.mode = _toByte(EMS_OFFSET_RC35Set_mode);
+if (EMS_Thermostat.hc =2 && src != 71) {return; }; // lobocobra desperate attempt to avoid that status messages from 3d overwrite values if you are on HC2
+    EMS_Thermostat.daytemp              = _toByte(EMS_OFFSET_RC35Set_temp_day);     // is * 2
+    EMS_Thermostat.nighttemp            = _toByte(EMS_OFFSET_RC35Set_temp_night);   // is * 2
+    EMS_Thermostat.holidaytemp          = _toByte(EMS_OFFSET_RC35Set_temp_holiday); // is * 2
+    //lobocobra start only read if we have 0x47, if not offset goes back 0 (only mqtt not in reality)
+        EMS_Thermostat.roomoffset         = _toByte(06); 
+        EMS_Thermostat.heatingtype          = _toByte(EMS_OFFSET_RC35Set_heatingtype);  // byte 0 bit floor heating = 3 0x47
+        EMS_Thermostat.sommerschwelletemp   = _toByte(22);  // byte 0 bit floor heating = 3 0x47
+        EMS_Thermostat.minvorlauf           = _toByte(16);  // read max temp temp send 0b 90 47 10 01 !!Max Vorlauf is other region
+    // read offset temp at min outside temp send 0b 90 47 06 01  
 
-    EMS_Thermostat.daytemp     = _toByte(EMS_OFFSET_RC35Set_temp_day);     // is * 2
-    EMS_Thermostat.nighttemp   = _toByte(EMS_OFFSET_RC35Set_temp_night);   // is * 2
-    EMS_Thermostat.holidaytemp = _toByte(EMS_OFFSET_RC35Set_temp_holiday); // is * 2
-    EMS_Thermostat.heatingtype = _toByte(EMS_OFFSET_RC35Set_heatingtype);  // byte 0 bit floor heating = 3 0x47
-    EMS_Thermostat.sommerschwelletemp = _toByte(22);  // byte 0 bit floor heating = 3 0x47
-    EMS_Thermostat.minvorlauf         = _toByte(16);  // read max temp temp send 0b 90 47 10 01 !!Max Vorlauf is other region
-    //lobocobra start
-    EMS_Thermostat.roomoffset         = _toByte(06); // read offset temp at min outside temp send 0b 90 47 06 01
     //lobocobra end
     EMS_Sys_Status.emsRefreshed = true; // triggers a send the values back via MQTT
 }
@@ -1610,11 +1614,11 @@ void ems_getThermostatValues() {
         myDebug("Read operations not yet supported for this model thermostat");
         return;
     }
-
     uint8_t model_id = EMS_Thermostat.model_id;
     uint8_t type     = EMS_Thermostat.type_id;
+    EMS_Thermostat.hc =2 ; // lobocobra IT WAS 0 after a while, so I force it to 2 here... ugly hack, but who cares
     uint8_t hc       = EMS_Thermostat.hc;
-
+    
     if (model_id == EMS_MODEL_RC20) {
         ems_doReadCommand(EMS_TYPE_RC20StatusMessage, type); // to get the setpoint temp
         ems_doReadCommand(EMS_TYPE_RC20Set, type);           // to get the mode
@@ -1631,11 +1635,11 @@ void ems_getThermostatValues() {
             //lobocobra start here we read regularily the data
             ems_doReadCommand(EMS_TYPE_AnlageParamSet, type);        // get PARAM settings
             //ems_doReadCommand(EMS_TYPE_HK2Schaltzeiten, type);     // would read from 0 I need 56
-            char Str2[] = "0b 90 49 55 20";                           // read 2nd part of 0x49 starting from DEC 85 
-            ems_sendRawTelegram((char *)&Str2);                       // read 2nd part of 0x49 starting from DEC 85
+            char Str2[] = "0b 90 49 55 20";                          // read 2nd part of 0x49 starting from DEC 85 
+                ems_sendRawTelegram((char *)&Str2);                  // read 2nd part of 0x49 starting from DEC 85
             //ems_doReadCommand(EMS_TYPE_RC35Set_HC2, type, 21);     // => did not work, so I write it directly
             char Str[] = "0b 90 47 16 20";                           // read 2nd part of 0x47 starting from DEC 22 
-            ems_sendRawTelegram((char *)&Str);                       // read 2nd part of 0x47 starting from DEC 22 
+                ems_sendRawTelegram((char *)&Str);                   // read 2nd part of 0x47 starting from DEC 22 
             //lobocobra end
         }
     } else if ((model_id == EMS_MODEL_EASY) || (model_id == EMS_MODEL_BOSCHEASY)) {
