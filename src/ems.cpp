@@ -1326,9 +1326,9 @@ if (EMS_Thermostat.hc =2 && src != 71) {return; }; // lobocobra desperate attemp
     EMS_Thermostat.nighttemp            = _toByte(EMS_OFFSET_RC35Set_temp_night);   // is * 2
     EMS_Thermostat.holidaytemp          = _toByte(EMS_OFFSET_RC35Set_temp_holiday); // is * 2
     //lobocobra start only read if we have 0x47, if not offset goes back 0 (only mqtt not in reality)
-        EMS_Thermostat.roomoffset         = _toByte(06); 
+        EMS_Thermostat.roomoffset           = _toByte(06); 
         EMS_Thermostat.heatingtype          = _toByte(EMS_OFFSET_RC35Set_heatingtype);  // byte 0 bit floor heating = 3 0x47
-        EMS_Thermostat.sommerschwelletemp   = _toByte(22);  // byte 0 bit floor heating = 3 0x47
+        EMS_Thermostat.sommerschwelletemp   = _toByte(22);  // 
         EMS_Thermostat.minvorlauf           = _toByte(16);  // read max temp temp send 0b 90 47 10 01 !!Max Vorlauf is other region
     // read offset temp at min outside temp send 0b 90 47 06 01  
 

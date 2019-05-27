@@ -547,88 +547,71 @@ void publishSensorValues() {
 // a json object is created for the boiler and one for the thermostat
 // CRC check is done to see if there are changes in the values since the last send to avoid too much wifi traffic
 // a check is done against the previous values and if there are changes only then they are published. Unless force=true
-void publishValues(bool force) {
+
+void publishValuesData2(bool force) {
     char                              s[20] = {0}; // for formatting strings
     StaticJsonDocument<MQTT_MAX_SIZE> doc;
     char                              data[MQTT_MAX_SIZE] = {0};
     CRC32                             crc;
     uint32_t                          fchecksum;
 
-    static uint8_t  last_boilerActive             = 0xFF; // for remembering last setting of the tap water or heating on/off
-    static uint32_t previousBoilerPublishCRC      = 0;    // CRC check for boiler values
-    static uint32_t previousThermostatPublishCRC  = 0;    // CRC check for thermostat values
     static uint32_t previousThermostat2PublishCRC = 0;    // lobocobra CRC check for thermostat values
-    static uint32_t previousOtherPublishCRC       = 0;    // CRC check for other values (e.g. SM10)
+ 
+       // build new json object // crc will not work if we have too many data
+        doc.clear();
+        JsonObject rootThermostat2 = doc.to<JsonObject>();
+           // lobocobra start
+           // 0xA5                               I used 196 as NOT SET (256-196/2=-30°)
+            if (EMS_Thermostat.minoutsidetemp != 196) {rootThermostat2[THERMOSTAT_MINOUTSIDETEMP] = itoa ( (255-EMS_Thermostat.minoutsidetemp+1)*-1,s,10); };//data is read async and thus later, avoid that we have the NO_DATA flag interpreted as -1 0xA5
+            rootThermostat2[THERMOSTAT_HOUSETYPE]            = _int_to_char(s, EMS_Thermostat.housetype);                 // 0xA5
+            rootThermostat2[THERMOSTAT_TEMPAVERAGEBOOL]      = _int_to_char(s, EMS_Thermostat.tempaveragebool);           // 0xA5
+            // 0x48 
+            rootThermostat2[THERMOSTAT_MAX_VORLAUF_REACHED]  = _int_to_char(s, EMS_Thermostat.max_vorlauf_reached);       // 0x48
+            rootThermostat2[THERMOSTAT_URLAUB_MODUS]         = _int_to_char(s, EMS_Thermostat.urlaub_modus);              // 0x48
+            rootThermostat2[THERMOSTAT_SOMMER_MODUS]         = _int_to_char(s, EMS_Thermostat.sommer_modus);              // 0x48
+            // 0x49
+            rootThermostat2[THERMOSTAT_PAUSEZEIT]            = _int_to_char(s, EMS_Thermostat.pausezeit);                 // 0x49
+            rootThermostat2[THERMOSTAT_PARTYZEIT]            = _int_to_char(s, EMS_Thermostat.partyzeit);                 // 0x49
+            // 0x16
+            rootThermostat2[THERMOSTAT_AUSSCHALTHYSTERESE]   = _int_to_char(s, EMS_Thermostat.ausschalthysterese);        // 0x16
+            rootThermostat2[THERMOSTAT_EINSCHALTHYSTERESE]   = itoa ( (255 - EMS_Thermostat.einschalthysterese+1)*-1,s,10); // 0x16
+            rootThermostat2[THERMOSTAT_ANTIPENDELZEIT]       = _int_to_char(s, EMS_Thermostat.antipendelzeit);            // 0x16
+            rootThermostat2[THERMOSTAT_KESSELPUMENNACHLAUF]  = _int_to_char(s, EMS_Thermostat.kesselpumennachlauf);       // 0x16
+            // lobocobra end
+           
+        data[0] = '\0'; // reset data for next package
+        serializeJson(doc, data, sizeof(data));
+        // calculate new CRC
+        crc.reset();
+        for (size_t i = 0; i < measureJson(doc) - 1; i++) {
+            crc.update(data[i]);
+        }
+        fchecksum = crc.finalize();
+        //myDebug(">>>>>>>>>>>>>>> 2 previousThermostatPublishCRC: %d  fchecksum %d force %d",previousThermostat2PublishCRC, fchecksum, force);
+        if ((previousThermostat2PublishCRC != fchecksum ) || force) {
+            previousThermostat2PublishCRC = fchecksum;
+            myDebugLog("Publishing thermostat2 data via MQTT");
+            // send values via MQTT
+            myESP.mqttPublish(TOPIC_THERMOSTAT2_DATA, data);
+        }
+}
 
-    JsonObject rootBoiler = doc.to<JsonObject>();
 
-    rootBoiler["wWSelTemp"]   = _int_to_char(s, EMS_Boiler.wWSelTemp);
-    rootBoiler["selFlowTemp"] = _int_to_char(s, EMS_Boiler.selFlowTemp);
-    rootBoiler["outdoorTemp"] = _short_to_char(s, EMS_Boiler.extTemp);
-    rootBoiler["abgasTemp"]   = _short_to_char(s, EMS_Boiler.abgasTemp);
-    rootBoiler["wWActivated"] = _bool_to_char(s, EMS_Boiler.wWActivated);
+void publishValuesData1(bool force) {
+    char                              s[20] = {0}; // for formatting strings
+    StaticJsonDocument<MQTT_MAX_SIZE> doc;
+    char                              data[MQTT_MAX_SIZE] = {0};
+    CRC32                             crc;
+    uint32_t                          fchecksum;
 
-    if (EMS_Boiler.wWComfort == EMS_VALUE_UBAParameterWW_wwComfort_Hot) {
-        rootBoiler["wWComfort"] = "Hot";
-    } else if (EMS_Boiler.wWComfort == EMS_VALUE_UBAParameterWW_wwComfort_Eco) {
-        rootBoiler["wWComfort"] = "Eco";
-    } else if (EMS_Boiler.wWComfort == EMS_VALUE_UBAParameterWW_wwComfort_Intelligent) {
-        rootBoiler["wWComfort"] = "Intelligent";
-    }
+     static uint32_t previousThermostatPublishCRC  = 0;    // CRC check for thermostat values
+     static uint16_t LastFlameMemory               = 0;    // send last Flame to avoid MQTT issues in Openhab
 
-    rootBoiler["wWCurTmp"]          = _short_to_char(s, EMS_Boiler.wWCurTmp);
-    rootBoiler["wWCurFlow"]         = _int_to_char(s, EMS_Boiler.wWCurFlow, 10);
-    rootBoiler["wWHeat"]            = _bool_to_char(s, EMS_Boiler.wWHeat);
-    rootBoiler["curFlowTemp"]       = _short_to_char(s, EMS_Boiler.curFlowTemp);
-    rootBoiler["retTemp"]           = _short_to_char(s, EMS_Boiler.retTemp);
-    rootBoiler["burnGas"]           = _bool_to_char(s, EMS_Boiler.burnGas);
-    rootBoiler["heatPmp"]           = _bool_to_char(s, EMS_Boiler.heatPmp);
-    rootBoiler["fanWork"]           = _bool_to_char(s, EMS_Boiler.fanWork);
-    rootBoiler["ignWork"]           = _bool_to_char(s, EMS_Boiler.ignWork);
-    rootBoiler["wWCirc"]            = _bool_to_char(s, EMS_Boiler.wWCirc);
-    rootBoiler["selBurnPow"]        = _int_to_char(s, EMS_Boiler.selBurnPow);
-    rootBoiler["curBurnPow"]        = _int_to_char(s, EMS_Boiler.curBurnPow);
-    rootBoiler["sysPress"]          = _int_to_char(s, EMS_Boiler.sysPress, 10);
-    rootBoiler["boilTemp"]          = _short_to_char(s, EMS_Boiler.boilTemp);
-    rootBoiler["pumpMod"]           = _int_to_char(s, EMS_Boiler.pumpMod);
-    rootBoiler["ServiceCode"]       = EMS_Boiler.serviceCodeChar;
-    rootBoiler["ServiceCodeNumber"] = EMS_Boiler.serviceCode;
-    // lobocobra start send to mqtt
-    rootBoiler["burnerDays"]        = _int_to_char(s, EMS_Boiler.burnWorkMin / 1440, 1);
-    rootBoiler["burnerHours"]       = _int_to_char(s, (EMS_Boiler.burnWorkMin % 1440) / 60, 1);
-    rootBoiler["burnerMin"]         = _int_to_char(s, EMS_Boiler.burnWorkMin %60, 1);
-    // rootBoiler["airInflow"]         = _short_to_char(s, EMS_Boiler.airInflow, 1); nicht vorhanden = 8300 bei GB125
-    if ( (EMS_Boiler.flameCurr != 0) && (EMS_Boiler.flameCurr != EMS_VALUE_SHORT_NOTSET) ) { 
-        rootBoiler["flameCurr"]   = _short_to_char(s, EMS_Boiler.flameCurr,1); };
- // lobocobra end  
-
-    serializeJson(doc, data, sizeof(data));
-
-    // calculate hash and send values if something has changed, to save unnecessary wifi traffic
-    for (size_t i = 0; i < measureJson(doc) - 1; i++) {
-        crc.update(data[i]);
-    }
-    fchecksum = crc.finalize();
-    if ((previousBoilerPublishCRC != fchecksum) || force) {
-        previousBoilerPublishCRC = fchecksum;
-        myDebugLog("Publishing boiler data via MQTT");
-
-        // send values via MQTT
-        myESP.mqttPublish(TOPIC_BOILER_DATA, data);
-    }
-
-    // see if the heating or hot tap water has changed, if so send
-    // last_boilerActive stores heating in bit 1 and tap water in bit 2
-    if ((last_boilerActive != ((EMS_Boiler.tapwaterActive << 1) + EMS_Boiler.heatingActive)) && (force && EMSESP_Status.heating_circuit ==1 )) { //lobocobra added EMSESP_Status.heating_circuit to force not needed for me
-        myDebugLog("Publishing hot water and heating states via MQTT");
-
-        last_boilerActive = ((EMS_Boiler.tapwaterActive << 1) + EMS_Boiler.heatingActive); // remember last state
-    }
 
     // handle the thermostat values separately
     if (ems_getThermostatEnabled()) {
         // only send thermostat values if we actually have them
-        if ((EMS_Thermostat.curr_roomTemp <= 0) && (EMS_Thermostat.setpoint_roomTemp <= 0) && (EMS_Thermostat.daytemp <=0)) {//lobocobra prevent due to bug, no mqtt
+        if (EMS_Thermostat.nighttemp <= 0 && EMS_Thermostat.daytemp <=0) {//lobocobra prevent due to bug, no mqtt
            return;
         }
         // build new json object
@@ -636,8 +619,8 @@ void publishValues(bool force) {
         JsonObject rootThermostat = doc.to<JsonObject>();
         rootThermostat[THERMOSTAT_HC] = _int_to_char(s, EMSESP_Status.heating_circuit);
         if ((ems_getThermostatModel() == EMS_MODEL_EASY) || (ems_getThermostatModel() == EMS_MODEL_BOSCHEASY)) {
-            rootThermostat[THERMOSTAT_SELTEMP]  = _short_to_char(s, EMS_Thermostat.setpoint_roomTemp, 10);
-            rootThermostat[THERMOSTAT_CURRTEMP] = _short_to_char(s, EMS_Thermostat.curr_roomTemp, 10);
+            rootThermostat[THERMOSTAT_SELTEMP]         = _short_to_char(s, EMS_Thermostat.setpoint_roomTemp, 10);
+            rootThermostat[THERMOSTAT_CURRTEMP]        = _short_to_char(s, EMS_Thermostat.curr_roomTemp, 10);
         } else {
             rootThermostat[THERMOSTAT_SELTEMP]         = _int_to_char(s, EMS_Thermostat.setpoint_roomTemp, 2);
             rootThermostat[THERMOSTAT_CURRTEMP]        = _int_to_char(s, EMS_Thermostat.curr_roomTemp, 10);
@@ -693,52 +676,94 @@ void publishValues(bool force) {
         if ((previousThermostatPublishCRC != fchecksum) || force) {
             previousThermostatPublishCRC = fchecksum;
             myDebugLog("Publishing thermostat data via MQTT");
-
             // send values via MQTT
         myESP.mqttPublish(TOPIC_THERMOSTAT_DATA, data);
         }
     }
-/////////
-       // build new json object // crc will not work if we have too many data
-        doc.clear();
-        JsonObject rootThermostat2 = doc.to<JsonObject>();
+}
 
-           // lobocobra start
-           // 0xA5                               I used 196 as NOT SET (256-196/2=-30°)
-            if (EMS_Thermostat.minoutsidetemp != 196) {rootThermostat2[THERMOSTAT_MINOUTSIDETEMP] = itoa ( (255-EMS_Thermostat.minoutsidetemp+1)*-1,s,10); };//data is read async and thus later, avoid that we have the NO_DATA flag interpreted as -1 0xA5
-            rootThermostat2[THERMOSTAT_HOUSETYPE]            = _int_to_char(s, EMS_Thermostat.housetype);                 // 0xA5
-            rootThermostat2[THERMOSTAT_TEMPAVERAGEBOOL]      = _int_to_char(s, EMS_Thermostat.tempaveragebool);           // 0xA5
-            // 0x48 
-            rootThermostat2[THERMOSTAT_MAX_VORLAUF_REACHED]  = _int_to_char(s, EMS_Thermostat.max_vorlauf_reached);       // 0x48
-            rootThermostat2[THERMOSTAT_URLAUB_MODUS]         = _int_to_char(s, EMS_Thermostat.urlaub_modus);              // 0x48
-            rootThermostat2[THERMOSTAT_SOMMER_MODUS]         = _int_to_char(s, EMS_Thermostat.sommer_modus);              // 0x48
-            // 0x49
-            rootThermostat2[THERMOSTAT_PAUSEZEIT]            = _int_to_char(s, EMS_Thermostat.pausezeit);                 // 0x49
-            rootThermostat2[THERMOSTAT_PARTYZEIT]            = _int_to_char(s, EMS_Thermostat.partyzeit);                 // 0x49
+void publishValues(bool force) {
+    char                              s[20] = {0}; // for formatting strings
+    StaticJsonDocument<MQTT_MAX_SIZE> doc;
+    char                              data[MQTT_MAX_SIZE] = {0};
+    CRC32                             crc;
+    uint32_t                          fchecksum;
 
-            // 0x16
-            rootThermostat2[THERMOSTAT_AUSSCHALTHYSTERESE]   = _int_to_char(s, EMS_Thermostat.ausschalthysterese);        // 0x16
-            rootThermostat2[THERMOSTAT_EINSCHALTHYSTERESE]   = itoa ( (255 - EMS_Thermostat.einschalthysterese+1)*-1,s,10); // 0x16
-            rootThermostat2[THERMOSTAT_ANTIPENDELZEIT]       = _int_to_char(s, EMS_Thermostat.antipendelzeit);            // 0x16
-            rootThermostat2[THERMOSTAT_KESSELPUMENNACHLAUF]  = _int_to_char(s, EMS_Thermostat.kesselpumennachlauf);       // 0x16
-            // lobocobra end
-           
-        data[0] = '\0'; // reset data for next package
-        serializeJson(doc, data, sizeof(data));
-        // calculate new CRC
-        crc.reset();
-        for (size_t i = 0; i < measureJson(doc) - 1; i++) {
-            crc.update(data[i]);
-        }
-        fchecksum = crc.finalize();
-        //myDebug(">>>>>>>>>>>>>>> 2 previousThermostatPublishCRC: %d  fchecksum %d force %d",previousThermostat2PublishCRC, fchecksum, force);
-        //if ((previousThermostat2PublishCRC != fchecksum) || force) {
-            previousThermostat2PublishCRC = fchecksum;
-            myDebugLog("Publishing thermostat2 data via MQTT");
-            // send values via MQTT
-            myESP.mqttPublish(TOPIC_THERMOSTAT2_DATA, data);
-        //}
-////////
+    static uint8_t  last_boilerActive             = 0xFF; // for remembering last setting of the tap water or heating on/off
+    static uint32_t previousBoilerPublishCRC      = 0;    // CRC check for boiler values
+    static uint32_t previousOtherPublishCRC       = 0;    // CRC check for other values (e.g. SM10)
+    static uint16_t LastFlameMemory               = 0;    // send last Flame to avoid MQTT issues in Openhab
+
+    //lobocobra moved to own procedures to ensure MQTT is published
+    publishValuesData1(force);
+    publishValuesData2(force);
+
+    JsonObject rootBoiler = doc.to<JsonObject>();
+
+    rootBoiler["wWSelTemp"]   = _int_to_char(s, EMS_Boiler.wWSelTemp);
+    rootBoiler["selFlowTemp"] = _int_to_char(s, EMS_Boiler.selFlowTemp);
+    rootBoiler["outdoorTemp"] = _short_to_char(s, EMS_Boiler.extTemp);
+    rootBoiler["abgasTemp"]   = _short_to_char(s, EMS_Boiler.abgasTemp);
+    rootBoiler["wWActivated"] = _bool_to_char(s, EMS_Boiler.wWActivated);
+
+    if (EMS_Boiler.wWComfort == EMS_VALUE_UBAParameterWW_wwComfort_Hot) {
+        rootBoiler["wWComfort"] = "Hot";
+    } else if (EMS_Boiler.wWComfort == EMS_VALUE_UBAParameterWW_wwComfort_Eco) {
+        rootBoiler["wWComfort"] = "Eco";
+    } else if (EMS_Boiler.wWComfort == EMS_VALUE_UBAParameterWW_wwComfort_Intelligent) {
+        rootBoiler["wWComfort"] = "Intelligent";
+    }
+
+    rootBoiler["wWCurTmp"]          = _short_to_char(s, EMS_Boiler.wWCurTmp);
+    rootBoiler["wWCurFlow"]         = _int_to_char(s, EMS_Boiler.wWCurFlow, 10);
+    rootBoiler["wWHeat"]            = _bool_to_char(s, EMS_Boiler.wWHeat);
+    rootBoiler["curFlowTemp"]       = _short_to_char(s, EMS_Boiler.curFlowTemp);
+    rootBoiler["retTemp"]           = _short_to_char(s, EMS_Boiler.retTemp);
+    rootBoiler["burnGas"]           = _bool_to_char(s, EMS_Boiler.burnGas);
+    rootBoiler["heatPmp"]           = _bool_to_char(s, EMS_Boiler.heatPmp);
+    rootBoiler["fanWork"]           = _bool_to_char(s, EMS_Boiler.fanWork);
+    rootBoiler["ignWork"]           = _bool_to_char(s, EMS_Boiler.ignWork);
+    rootBoiler["wWCirc"]            = _bool_to_char(s, EMS_Boiler.wWCirc);
+    rootBoiler["selBurnPow"]        = _int_to_char(s, EMS_Boiler.selBurnPow);
+    rootBoiler["curBurnPow"]        = _int_to_char(s, EMS_Boiler.curBurnPow);
+    rootBoiler["sysPress"]          = _int_to_char(s, EMS_Boiler.sysPress, 10);
+    rootBoiler["boilTemp"]          = _short_to_char(s, EMS_Boiler.boilTemp);
+    rootBoiler["pumpMod"]           = _int_to_char(s, EMS_Boiler.pumpMod);
+    rootBoiler["ServiceCode"]       = EMS_Boiler.serviceCodeChar;
+    rootBoiler["ServiceCodeNumber"] = EMS_Boiler.serviceCode;
+    // lobocobra start send to mqtt
+    rootBoiler["burnerDays"]        = _int_to_char(s, EMS_Boiler.burnWorkMin / 1440, 1);
+    rootBoiler["burnerHours"]       = _int_to_char(s, (EMS_Boiler.burnWorkMin % 1440) / 60, 1);
+    rootBoiler["burnerMin"]         = _int_to_char(s, EMS_Boiler.burnWorkMin %60, 1);
+    // rootBoiler["airInflow"]      = _short_to_char(s, EMS_Boiler.airInflow, 1); nicht vorhanden = 8300 bei GB125
+    (EMS_Boiler.flameCurr > 0 && EMS_Boiler.flameCurr != EMS_VALUE_SHORT_NOTSET) ? LastFlameMemory = EMS_Boiler.flameCurr: LastFlameMemory;
+    rootBoiler["flameCurr"]         = _short_to_char(s, LastFlameMemory,1); 
+
+ // lobocobra end  
+
+    serializeJson(doc, data, sizeof(data));
+
+    // calculate hash and send values if something has changed, to save unnecessary wifi traffic
+    for (size_t i = 0; i < measureJson(doc) - 1; i++) {
+        crc.update(data[i]);
+    }
+    fchecksum = crc.finalize();
+    if ((previousBoilerPublishCRC != fchecksum) || force) {
+        previousBoilerPublishCRC = fchecksum;
+        myDebugLog("Publishing boiler data via MQTT");
+
+        // send values via MQTT
+        myESP.mqttPublish(TOPIC_BOILER_DATA, data);
+    }
+
+    // see if the heating or hot tap water has changed, if so send
+    // last_boilerActive stores heating in bit 1 and tap water in bit 2
+    if ((last_boilerActive != ((EMS_Boiler.tapwaterActive << 1) + EMS_Boiler.heatingActive)) && (force && EMSESP_Status.heating_circuit ==1 )) { //lobocobra added EMSESP_Status.heating_circuit to force not needed for me
+        myDebugLog("Publishing hot water and heating states via MQTT");
+
+        last_boilerActive = ((EMS_Boiler.tapwaterActive << 1) + EMS_Boiler.heatingActive); // remember last state
+    }
+ 
     // handle the other values separately
     // For SM10 Solar Module
     if (EMS_Other.SM10) {
@@ -1324,6 +1349,7 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
         myESP.mqttSubscribe(THERMOSTAT_CMD_MAXVORLAUF);
         myESP.mqttSubscribe(THERMOSTAT_CMD_MINVORLAUF);
         myESP.mqttSubscribe(THERMOSTAT_HEIZTURBO_TILL_NEXT);
+        myESP.mqttSubscribe(THERMOSTAT_CMD_KESSELPUMENNACHLAUF);        
         myESP.mqttSubscribe(THERMOSTAT_CMD_ROOMOFFSET);
         myESP.mqttSubscribe(THERMOSTAT_CMD_MINOUTSIDETEMP);
         myESP.mqttSubscribe(THERMOSTAT_CMD_HOUSETYPE);
@@ -1389,7 +1415,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             char buffer[16]      = {0};
             ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
             myDebug("MQTT topic: New Ausschalthysterese C %s", message);  
-            publishValues(true); // needed in order to have mqtt updated
         }          
         if (strcmp(topic,THERMOSTAT_CMD_EINSCHALTHYSTERESE ) == 0) { // negative VALUE!
             //convert message to INT and control it
@@ -1404,7 +1429,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             char buffer[16]      = {0};
             ems_sendRawTelegram( strcat (Atemp, _hextoa( t, buffer)) );  //negative value, substract from 256
             myDebug("MQTT topic: New Einschalthysterese ° above %s", message); 
-            publishValues(true); // needed in order to have mqtt updated
         }
         if (strcmp(topic,THERMOSTAT_CMD_ANTIPENDELZEIT ) == 0) {
             //convert message to INT and control it
@@ -1419,7 +1443,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             char buffer[16]      = {0};
             ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
             myDebug("MQTT topic: New Antipendelzeit min %s", message);  
-            publishValues(true); // needed in order to have mqtt updated
         }
         if (strcmp(topic,THERMOSTAT_CMD_AUSLEGUNGSTEMP ) == 0) {
             //convert message to INT and control it
@@ -1434,7 +1457,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             char buffer[16]      = {0};
             ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
             myDebug("MQTT topic: New Auslegungstemperatur %s", message);  
-            publishValues(true); // needed in order to have mqtt updated           
         }  
         if (strcmp(topic,THERMOSTAT_CMD_HEIZTURBO_TILL_NEXT ) == 0) {
             //convert message to INT and control it
@@ -1451,7 +1473,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             //convert INT to hex & prepare HEX string to send 
             ems_sendRawTelegram( strcat (Atemp, _hextoa((int)t, buffer)) );  
             myDebug("MQTT topic: New Turbo Temp %s", _float_to_char(buffer, t/2));
-            publishValues(true); // needed in order to have mqtt updated
         } 
         if (strcmp(topic,THERMOSTAT_CMD_MAXVORLAUF ) == 0) {
             //convert message to INT and control it
@@ -1466,7 +1487,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             char buffer[16]      = {0};
             ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
             myDebug("MQTT topic: New Max Vorlauf %s", message);
-            publishValues(true); // needed in order to have mqtt updated
         } 
         if (strcmp(topic,THERMOSTAT_CMD_MINVORLAUF ) == 0) {
             //convert message to INT and control it
@@ -1481,7 +1501,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             char buffer[16]      = {0};
             ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
             myDebug("MQTT topic: New Min Vorlauf %s", message);
-            publishValues(true); // needed in order to have mqtt updated
         }          
         if (strcmp(topic,THERMOSTAT_CMD_ROOMOFFSET ) == 0) {
             //convert message to INT and control it
@@ -1498,7 +1517,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             //convert INT to hex & prepare HEX string to send 
             ems_sendRawTelegram( strcat (Atemp, _hextoa((int)t, buffer)) );  
             myDebug("MQTT topic: New RoomOffset %s", _float_to_char(buffer, t));
-            publishValues(true); // needed in order to have mqtt updated
         }    
         if (strcmp(topic,THERMOSTAT_CMD_MINOUTSIDETEMP ) == 0) {
             //convert message to INT and control it
@@ -1514,7 +1532,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             ems_sendRawTelegram( strcat (Atemp, _hextoa( (t), buffer)) );  //negative value, substract from 256
             //myDebug("MQTT topic: New Minusoutsidetemp ° above %s", strcat (Atemp, _hextoa( (t), buffer)));
             myDebug("MQTT topic: New Minusoutsidetemp at %s", message); 
-            publishValues(true); // needed in order to have mqtt updated 
         }       
         if (strcmp(topic,THERMOSTAT_CMD_HOUSETYPE ) == 0) {
             //convert message to INT and control it
@@ -1529,7 +1546,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             char buffer[16]      = {0};
             ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
             myDebug("MQTT topic: New House type %s", message);
-            publishValues(true); // needed in order to have mqtt updated
         } 
         if (strcmp(topic,THERMOSTAT_CMD_PAUSEZEIT) == 0) {
             //convert message to INT and control it
@@ -1544,7 +1560,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             char buffer[16]      = {0};
             ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
             myDebug("MQTT topic: PAUSEZEIT for %s hours", message);
-            publishValues(true); // needed in order to have mqtt updated
         }   
         if (strcmp(topic,THERMOSTAT_CMD_PARTYZEIT) == 0) {
             //convert message to INT and control it
@@ -1559,7 +1574,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             char buffer[16]      = {0};
             ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
             myDebug("MQTT topic: PARTYZEIT for %s hours", message);
-            publishValues(true); // needed in order to have mqtt updated
         }               
         if (strcmp(topic,THERMOSTAT_CMD_TEMPAVERAGEBOOL ) == 0) {
             //convert message to INT and control it
@@ -1574,7 +1588,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             char buffer[16]      = {0};
             ems_sendRawTelegram( strcat (Atemp, _hextoa(t*255, buffer)) );  // on =255 off=0
             myDebug("MQTT topic: TempDaempung ON/OFF %s", message);
-            publishValues(true); // needed in order to have mqtt updated
         }      
         if (strcmp(topic,THERMOSTAT_CMD_KESSELPUMENNACHLAUF ) == 0) {
             //convert message to INT and control it
@@ -1589,7 +1602,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             char buffer[16]      = {0};
             ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
             myDebug("MQTT topic: Kesselpumpennachlauf min %s", message);  
-            publishValues(true); // needed in order to have mqtt updated
         }
         if (strcmp(topic,THERMOSTAT_CMD_SOMMERSCHWELLE_TEMP ) == 0) {
             //convert message to INT and control it
@@ -1604,7 +1616,6 @@ void MQTTCallback(unsigned int type, const char * topic, const char * message) {
             char buffer[16]      = {0};
             ems_sendRawTelegram( strcat (Atemp, _hextoa(t, buffer)) );  
             myDebug("MQTT topic: New Sommerschwelle Temp %s", message);
-            publishValues(true); // needed in order to have mqtt updated
         }  
         //lobocobra end 
 
