@@ -562,7 +562,10 @@ void publishValuesData2(bool force) {
         JsonObject rootThermostat2 = doc.to<JsonObject>();
            // lobocobra start
            // 0xA5                               I used 196 as NOT SET (256-196/2=-30°)
-            if (EMS_Thermostat.minoutsidetemp != 196) {rootThermostat2[THERMOSTAT_MINOUTSIDETEMP] = itoa ( (255-EMS_Thermostat.minoutsidetemp+1)*-1,s,10); };//data is read async and thus later, avoid that we have the NO_DATA flag interpreted as -1 0xA5
+            (EMS_Thermostat.minoutsidetemp != 196) ? 
+                rootThermostat2[THERMOSTAT_MINOUTSIDETEMP] = itoa ( (255-EMS_Thermostat.minoutsidetemp+1)*-1,s,10):
+                rootThermostat2[THERMOSTAT_MINOUTSIDETEMP] = "";
+                 //data is read async and thus later, avoid that we have the NO_DATA flag interpreted as -1 0xA5
             rootThermostat2[THERMOSTAT_HOUSETYPE]            = _int_to_char(s, EMS_Thermostat.housetype);                 // 0xA5
             rootThermostat2[THERMOSTAT_TEMPAVERAGEBOOL]      = _int_to_char(s, EMS_Thermostat.tempaveragebool);           // 0xA5
             // 0x48 
@@ -637,8 +640,9 @@ void publishValuesData1(bool force) {
             
             // _float_to_char did not work, so I used dtostrf, !!! 236 = unset number so I only allow valid numbers below
             char buffer[16]      = {0};
-            if (EMS_Thermostat.roomoffset >= 246) rootThermostat[THERMOSTAT_ROOMOFFSET] = dtostrf((float)(EMS_Thermostat.roomoffset- 256 )/2, 4, 2, buffer);
-            if (EMS_Thermostat.roomoffset <= 10)  rootThermostat[THERMOSTAT_ROOMOFFSET] = dtostrf((float)EMS_Thermostat.roomoffset/2, 4, 2, buffer);
+            if (EMS_Thermostat.roomoffset >= 246) rootThermostat[THERMOSTAT_ROOMOFFSET] = dtostrf((float)(EMS_Thermostat.roomoffset- 256 )/2, 4, 2, buffer); //negative value
+            if (EMS_Thermostat.roomoffset <= 10)  rootThermostat[THERMOSTAT_ROOMOFFSET] = dtostrf((float)EMS_Thermostat.roomoffset/2, 4, 2, buffer); //positive value
+            if (EMS_Thermostat.roomoffset >= 11 && EMS_Thermostat.roomoffset <=245 ) { rootThermostat[THERMOSTAT_ROOMOFFSET] = ""; } // if heating is off, then send empty string to avoid openhab error
                        
             rootThermostat[THERMOSTAT_SOMMERSCHWELLE_TEMP]  = _int_to_char(s, EMS_Thermostat.sommerschwelletemp); // 0x47,1 
             // lobocobra end
@@ -736,6 +740,7 @@ void publishValues(bool force) {
     rootBoiler["burnerHours"]       = _int_to_char(s, (EMS_Boiler.burnWorkMin % 1440) / 60, 1);
     rootBoiler["burnerMin"]         = _int_to_char(s, EMS_Boiler.burnWorkMin %60, 1);
     // rootBoiler["airInflow"]      = _short_to_char(s, EMS_Boiler.airInflow, 1); nicht vorhanden = 8300 bei GB125
+    // if we have no new data, then we send the last data, if not we see all time 0 instead of some usefull info
     (EMS_Boiler.flameCurr > 0 && EMS_Boiler.flameCurr != EMS_VALUE_SHORT_NOTSET) ? LastFlameMemory = EMS_Boiler.flameCurr: LastFlameMemory;
     rootBoiler["flameCurr"]         = _short_to_char(s, LastFlameMemory,1); 
 
