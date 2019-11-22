@@ -739,6 +739,10 @@ void publishValues(bool force) {
     rootBoiler["burnerDays"]        = _int_to_char(s, EMS_Boiler.burnWorkMin / 1440, 1);
     rootBoiler["burnerHours"]       = _int_to_char(s, (EMS_Boiler.burnWorkMin % 1440) / 60, 1);
     rootBoiler["burnerMin"]         = _int_to_char(s, EMS_Boiler.burnWorkMin %60, 1);
+    //lobocobra .... send LOOOONG to Char
+    char buf[16]; ltoa(EMS_Boiler.burnStarts,buf,10);
+    rootBoiler["burnerStarts"]      = buf;
+    //rootBoiler["burnerStarts"]      = _int_to_char(s, EMS_Boiler.burnStarts);
     // rootBoiler["airInflow"]      = _short_to_char(s, EMS_Boiler.airInflow, 1); nicht vorhanden = 8300 bei GB125
     // if we have no new data, then we send the last data, if not we see all time 0 instead of some usefull info
     (EMS_Boiler.flameCurr > 0 && EMS_Boiler.flameCurr != EMS_VALUE_SHORT_NOTSET) ? LastFlameMemory = EMS_Boiler.flameCurr: LastFlameMemory;
