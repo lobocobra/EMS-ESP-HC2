@@ -177,10 +177,11 @@ void MyESP::_wifiCallback(justwifi_messages_t code, char * parameter) {
         myDebug_P(PSTR("[WIFI] MAC   %s"), WiFi.softAPmacAddress().c_str());
 
         // we could be in panic mode so enable Serial again
-        if (!_use_serial) {
-            SerialAndTelnet.setSerial(&Serial);
-            _use_serial = true;
-        }
+        // lobocobra, I do not need serial so I deactivate it, times to times it goes offline, I do not want this
+        //if (!_use_serial) {
+        //    SerialAndTelnet.setSerial(&Serial);
+        //    _use_serial = true;
+        //}
 
         myDebug_P(PSTR("Enabling serial port output"));
 
@@ -671,6 +672,8 @@ bool MyESP::_changeSetting(uint8_t wc, const char * setting, const char * value)
                 myDebug_P(PSTR("Reboot ESP to activate Serial mode."));
             } else if (strcmp(value, "off") == 0) {
                 _use_serial = false;
+                // lobocobra ... added below line, why does he not deactivate it directly?
+                // SerialAndTelnet.setSerial(NULL);
                 ok          = true;
                 myDebug_P(PSTR("Reboot ESP to deactivate Serial mode."));
             } else {

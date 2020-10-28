@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.7.0b5 lobo final v6] 2020.20.29
+deactivated serial ON on panic mode. Can now only be activated manually
+
+## [1.7.0b5 lobo final v5] 2020.20.29
+Recoded quick and dirty to support heating
 
 ## [1.7.0 dev] 2019-04-07
 
